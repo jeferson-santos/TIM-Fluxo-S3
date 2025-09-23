@@ -1,766 +1,400 @@
-# CASOS DE TESTE - INTEGRAÇÃO S3 E SMARTID (IDENTITYIQ)
+# FORM CHANGE - DEPLOY INTEGRAÇÃO S3 E SMARTID EM PRODUÇÃO
 
-## 1. INTRODUÇÃO
+## INFORMAÇÕES GERAIS
 
-### 1.1. Objetivo
-Este documento apresenta os casos de teste para validação da integração entre a aplicação S3 e a plataforma SmartID (IdentityIQ), cobrindo os cenários de concessão e remoção de acessos.
-
-### 1.2. Escopo
-- Testes funcionais do workflow TIM-S3
-- Validação de integração via API REST
-- Testes de validação de dados
-- Testes de aprovação e provisionamento
-- Testes de tratamento de erros
-
-### 1.3. Ambiente de Teste
-- **URL Base**: `http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-S3/launch`
-- **Ambiente**: Homologação/Desenvolvimento
-- **Dados de Teste**: Conjunto específico de identidades e roles para testes
-
-## 2. DADOS DE TESTE
-
-### 2.1. Identidades de Teste
-| Matrícula | Nome | Status | Aprovador |
-|-----------|------|--------|-----------|
-| F8015590 | João Silva | Ativo | F8000036 |
-| F8015591 | Maria Santos | Ativo | F8000037 |
-| F8015592 | Pedro Costa | Inativo | F8000036 |
-| F8015593 | Ana Oliveira | Ativo | F8000038 |
-
-### 2.2. Sistemas e Perfis de Teste
-| Sistema | Perfil | Status | Permite Duplicidade |
-|---------|--------|--------|-------------------|
-| BDOH | AFBANCR1 | Ativo | Não |
-| BDOH | AFBANCR2 | Ativo | Não |
-| SIEBEL | SIEBELPOS_TIBPCS01 | Ativo | Sim |
-| SIEBEL | SIEBELPOS_TIBPCS02 | Ativo | Sim |
-
-### 2.3. Aprovadores de Teste
-| Matrícula | Nome | Status | Tipo |
-|-----------|------|--------|------|
-| F8000036 | Carlos Manager | Ativo | Manager |
-| F8000037 | Lucia Supervisor | Ativo | Supervisor |
-| F8000038 | Roberto Admin | Ativo | Admin |
-
-## 3. CASOS DE TESTE FUNCIONAIS
-
-### 3.1. CT001 - Concessão de Acesso com Sucesso
-
-**Objetivo**: Validar concessão de acesso com todos os parâmetros válidos
-
-**Pré-condições**:
-- Identidade existe e está ativa
-- Role existe e está ativa
-- Aprovador existe e está ativo
-- Sistema está cadastrado na custom
-
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT001-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036",
-    "args": {
-      "area": "ADMINISTRADOR",
-      "filial": "SP"
-    }
-  }
-}
-```
-
-**Passos**:
-1. Enviar requisição via API REST
-2. Verificar validação da requisição
-3. Verificar validação dos dados
-4. Verificar validação dos parâmetros
-5. Verificar criação do plano
-6. Verificar aprovação manual
-7. Verificar provisionamento
-
-**Resultado Esperado**:
-- Status: success
-- Workflow executado completamente
-- Acesso concedido com sucesso
-- Email de notificação enviado
+**Título**: Deploy da Integração S3 e SmartID (IdentityIQ) em Produção  
+**Data**: 15 de Janeiro de 2024  
+**Solicitante**: Equipe TIM - Cybersecurity  
+**Responsável Técnico**: [Nome do Responsável]  
+**Ambiente**: Produção  
+**Tipo de Change**: Deploy de Nova Funcionalidade  
+**Prioridade**: Alta  
+**Janela de Manutenção**: [Data/Hora]  
 
 ---
 
-### 3.2. CT002 - Remoção de Acesso com Sucesso
+## 1. PASSO A PASSO DA INSTALAÇÃO
 
-**Objetivo**: Validar remoção de acesso com parâmetros válidos
+### 1.1. Área: IT-OPS - Infraestrutura
 
-**Pré-condições**:
-- Identidade existe e está ativa
-- Role existe e está ativa
-- Aprovador existe e está ativo
-- Sistema está cadastrado na custom
+#### **Pré-requisitos**
+- [ ] Verificar disponibilidade do ambiente SmartID Produção
+- [ ] Confirmar backup completo do IdentityIQ
+- [ ] Validar conectividade de rede entre S3 e SmartID
+- [ ] Verificar certificados SSL válidos
+- [ ] Confirmar recursos de CPU/Memória disponíveis
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT002-001",
-    "user": "F8015590",
-    "operation": "remove",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+#### **Atividades de Instalação**
 
-**Passos**:
-1. Enviar requisição via API REST
-2. Verificar validação da requisição
-3. Verificar validação dos dados
-4. Verificar criação do plano (sem validação de parâmetros)
-5. Verificar aprovação manual
-6. Verificar provisionamento
+**1.1.1. Backup e Preparação**
+- [ ] Executar backup completo do banco IdentityIQ
+- [ ] Criar snapshot do servidor SmartID
+- [ ] Documentar configurações atuais
+- [ ] Preparar ambiente de rollback
 
-**Resultado Esperado**:
-- Status: success
-- Workflow executado completamente
-- Acesso removido com sucesso
-- Email de notificação enviado
+**1.1.2. Deploy dos Componentes**
+- [ ] Fazer upload dos workflows XML para o IdentityIQ
+  - `TIM-S3.xml`
+  - `TIM-S3-Identity Request Initialize.xml`
+  - `TIM-S3-Identity Request Provision.xml`
+  - `TIM-S3-Provision with retries.xml`
+- [ ] Fazer upload das rules para o IdentityIQ
+  - `TIM-Rule-Workflow-S3-GetToken`
+  - `TIM-Rule-Workflow-S3-CheckRequest`
+  - `TIM-Rule-Workflow-S3-CheckData`
+  - `TIM-Rule-Workflow-S3-CheckParameters`
+  - `TIM-Rule-Workflow-S3-BuildPlan`
+  - `TIM-Rule-Workflow-S3-CheckApprover`
+  - `TIM-Rule-Workflow-S3-ApprovalSet`
+  - `TIM-Rule-Workflow-S3-CheckApprovalResult`
+  - `TIM-Rule-Workflow-S3-CheckAppDesconectada`
+  - `TIM-Rule-Workflow-S3-ApprovalSet-AppDesconectada`
+  - `TIM-Rule-Workflow-S3-ModifyTask`
+  - `TIM-Rule-Workflow-S3-InjectProjectArgs`
+- [ ] Fazer upload dos templates de email
+  - `TIM-EmailTemplate-S3-Approval`
+  - `TIM-EmailTemplate-S3-AppDesconectada`
 
----
+**1.1.3. Configuração de Variáveis**
+- [ ] Configurar variáveis do workflow TIM-S3:
+  - `s3_apiKey`: [Chave da API S3 Produção]
+  - `s3_apiSecret`: [Secret da API S3 Produção]
+  - `s3_baseUrl`: `https://azrwin0145.internal.timbrasil.com.br:8083/api/v1`
+  - `customName`: `TIM-S3-Applications`
+  - `fallbackApprover`: `spadmin`
+- [ ] Configurar permissões de execução do workflow
+- [ ] Configurar timeouts e retry policies
 
-### 3.3. CT003 - Concessão com App Desconectada
+**1.1.4. Configuração de Custom**
+- [ ] Criar/atualizar custom `TIM-S3-Applications` com sistemas permitidos
+- [ ] Configurar mapeamentos de argumentos por sistema
+- [ ] Validar configurações de duplicidade de roles
 
-**Objetivo**: Validar fluxo de aprovação para aplicação desconectada
+**1.1.5. Configuração de Monitoramento**
+- [ ] Configurar alertas no PRTG para o workflow TIM-S3
+- [ ] Configurar logs de auditoria
+- [ ] Configurar métricas de performance
 
-**Pré-condições**:
-- Identidade existe e está ativa
-- Role existe e está ativa
-- Aprovador existe e está ativo
-- Sistema está cadastrado na custom
-- Aplicação configurada como desconectada
+### 1.2. Área: TIM - Desenvolvimento
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT003-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "SIEBEL",
-    "profile": "SIEBELPOS_TIBPCS01",
-    "approver": "F8000036",
-    "args": {
-      "position": "XYZ",
-      "pin": "XYZ"
-    }
-  }
-}
-```
+#### **Atividades de Configuração**
 
-**Passos**:
-1. Enviar requisição via API REST
-2. Verificar validação da requisição
-3. Verificar validação dos dados
-4. Verificar validação dos parâmetros
-5. Verificar criação do plano
-6. Verificar aprovação manual
-7. Verificar detecção de app desconectada
-8. Verificar aprovação adicional para app desconectada
-9. Verificar provisionamento
+**1.2.1. Configuração da API S3**
+- [ ] Configurar endpoint de produção no S3
+- [ ] Validar credenciais de API
+- [ ] Configurar timeout e retry policies
+- [ ] Testar conectividade com SmartID
 
-**Resultado Esperado**:
-- Status: success
-- Workflow executado completamente
-- Duas aprovações manuais realizadas
-- Acesso concedido com sucesso
+**1.2.2. Configuração de Dados**
+- [ ] Configurar identidades de teste em produção
+- [ ] Configurar roles e perfis necessários
+- [ ] Configurar aprovadores padrão
+- [ ] Validar mapeamentos de sistemas
 
----
+**1.2.3. Configuração de Segurança**
+- [ ] Configurar autenticação entre S3 e SmartID
+- [ ] Validar certificados SSL
+- [ ] Configurar firewall e regras de rede
+- [ ] Implementar logs de segurança
 
-## 4. CASOS DE TESTE DE VALIDAÇÃO
+### 1.3. Área: TIM - Cybersecurity
 
-### 4.1. CT004 - Request ID Inválido
+#### **Atividades de Validação**
 
-**Objetivo**: Validar tratamento de Request ID inválido
+**1.3.1. Validação de Segurança**
+- [ ] Validar controles de acesso
+- [ ] Verificar auditoria e rastreabilidade
+- [ ] Validar criptografia de dados
+- [ ] Verificar conformidade com políticas
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "INVALID-REQUEST-ID",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
-
-**Resultado Esperado**:
-- Status: error
-- Código: REQUEST_NOT_FOUND
-- Mensagem: "Request ID inválido ou não encontrado"
+**1.3.2. Validação de Governança**
+- [ ] Validar fluxo de aprovação
+- [ ] Verificar controles de duplicidade
+- [ ] Validar custom de sistemas permitidos
+- [ ] Verificar logs de auditoria
 
 ---
 
-### 4.2. CT005 - Identidade Não Encontrada
+## 2. PROCEDIMENTO DE VALIDAÇÃO FUNCIONAL E TÉCNICA
 
-**Objetivo**: Validar tratamento de identidade inexistente
+### 2.1. Validação Técnica
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT005-001",
-    "user": "F9999999",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+#### **Área: IT-OPS**
 
-**Resultado Esperado**:
-- Status: error
-- Código: IDENTITY_NOT_FOUND
-- Mensagem: "Identidade não encontrada para a matrícula F9999999"
+**2.1.1. Validação de Infraestrutura**
+- [ ] Verificar status dos serviços IdentityIQ
+- [ ] Validar conectividade de rede
+- [ ] Verificar logs de sistema
+- [ ] Validar performance do servidor
+- [ ] Verificar backup automático
 
----
+**2.1.2. Validação de Configuração**
+- [ ] Verificar importação dos workflows
+- [ ] Validar configuração das rules
+- [ ] Verificar templates de email
+- [ ] Validar variáveis do workflow
+- [ ] Verificar permissões de execução
 
-### 4.3. CT006 - Identidade Inativa
+**2.1.3. Validação de Monitoramento**
+- [ ] Verificar alertas do PRTG
+- [ ] Validar logs de auditoria
+- [ ] Verificar métricas de performance
+- [ ] Validar notificações de erro
 
-**Objetivo**: Validar tratamento de identidade inativa
+#### **Área: TIM - Desenvolvimento**
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT006-001",
-    "user": "F8015592",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+**2.1.4. Validação de Integração**
+- [ ] Testar conectividade S3 → SmartID
+- [ ] Validar autenticação da API
+- [ ] Verificar timeout e retry
+- [ ] Validar tratamento de erros
+- [ ] Testar carga normal (10 requisições)
 
-**Resultado Esperado**:
-- Status: error
-- Código: IDENTITY_INACTIVE
-- Mensagem: "Identidade F8015592 está inativa"
+### 2.2. Validação Funcional
 
----
+#### **Área: TIM - Cybersecurity**
 
-### 4.4. CT007 - Role Não Encontrada
+**2.2.1. Testes de Concessão de Acesso**
+- [ ] **CT001**: Concessão de acesso com sucesso
+- [ ] **CT002**: Remoção de acesso com sucesso
+- [ ] **CT003**: Concessão com app desconectada
+- [ ] Validar fluxo de aprovação
+- [ ] Verificar emails de notificação
 
-**Objetivo**: Validar tratamento de role inexistente
+**2.2.2. Testes de Validação**
+- [ ] **CT004**: Request ID inválido
+- [ ] **CT005**: Identidade não encontrada
+- [ ] **CT006**: Identidade inativa
+- [ ] **CT007**: Role não encontrada
+- [ ] **CT008**: Aprovador não encontrado
+- [ ] **CT009**: Sistema não cadastrado
+- [ ] **CT010**: Parâmetros obrigatórios ausentes
+- [ ] **CT011**: Operação inválida
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT007-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "INVALID_PROFILE",
-    "approver": "F8000036"
-  }
-}
-```
+**2.2.3. Testes de Segurança**
+- [ ] **CT017**: Proteção contra injeção SQL
+- [ ] **CT018**: Proteção contra XSS
+- [ ] Validar auditoria e logs
+- [ ] Verificar rastreabilidade
 
-**Resultado Esperado**:
-- Status: error
-- Código: ROLE_NOT_FOUND
-- Mensagem: "Role BDOH_INVALID_PROFILE não encontrada"
+**2.2.4. Testes de Performance**
+- [ ] **CT015**: Carga normal (10 requisições)
+- [ ] **CT016**: Carga alta (50 requisições)
+- [ ] Verificar tempo de resposta < 30s
+- [ ] Validar taxa de sucesso > 95%
 
----
+#### **Área: TIM - Negócio**
 
-### 4.5. CT008 - Role Inativa
-
-**Objetivo**: Validar tratamento de role inativa
-
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT008-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "INACTIVE_PROFILE",
-    "approver": "F8000036"
-  }
-}
-```
-
-**Resultado Esperado**:
-- Status: error
-- Código: ROLE_INACTIVE
-- Mensagem: "Role BDOH_INACTIVE_PROFILE está desabilitada"
+**2.2.5. Validação de Processo de Negócio**
+- [ ] Validar fluxo de aprovação manual
+- [ ] Verificar notificações por email
+- [ ] Validar controle de duplicidade
+- [ ] Verificar auditoria de mudanças
+- [ ] Validar conformidade com políticas
 
 ---
 
-### 4.6. CT009 - Aprovador Não Encontrado
+## 3. PROCEDIMENTOS DE ROLLBACK
 
-**Objetivo**: Validar tratamento de aprovador inexistente
+### 3.1. Rollback Completo
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT009-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F9999999"
-  }
-}
-```
+#### **Área: IT-OPS**
 
-**Resultado Esperado**:
-- Status: error
-- Código: APPROVER_NOT_FOUND
-- Mensagem: "Approver não encontrado após todas as tentativas: F9999999"
+**3.1.1. Rollback de Workflows e Rules**
+- [ ] Parar execução de workflows ativos
+- [ ] Remover workflows importados:
+  - `TIM-S3.xml`
+  - `TIM-S3-Identity Request Initialize.xml`
+  - `TIM-S3-Identity Request Provision.xml`
+  - `TIM-S3-Provision with retries.xml`
+- [ ] Remover rules importadas (12 rules)
+- [ ] Remover templates de email
+- [ ] Restaurar backup do banco IdentityIQ
+- [ ] Restaurar snapshot do servidor
 
----
+**3.1.2. Rollback de Configurações**
+- [ ] Remover custom `TIM-S3-Applications`
+- [ ] Restaurar variáveis do sistema
+- [ ] Remover configurações de monitoramento
+- [ ] Restaurar configurações de rede
 
-### 4.7. CT010 - Sistema Não Cadastrado
+#### **Área: TIM - Desenvolvimento**
 
-**Objetivo**: Validar tratamento de sistema não cadastrado na custom
+**3.1.3. Rollback da Integração S3**
+- [ ] Desabilitar endpoint de integração no S3
+- [ ] Restaurar configurações de API
+- [ ] Remover credenciais de produção
+- [ ] Restaurar configurações de segurança
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT010-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "INVALID_SYSTEM",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+### 3.2. Plano de Ação para Falhas
 
-**Resultado Esperado**:
-- Status: error
-- Código: SYSTEM_NOT_REGISTERED
-- Mensagem: "Sistema 'INVALID_SYSTEM' não está cadastrado na custom TIM-S3-Applications"
+**Em caso de falha crítica durante o deploy:**
 
----
+1. **Imediato (0-15 minutos)**:
+   - [ ] Parar execução de workflows ativos
+   - [ ] Notificar equipe de incidente
+   - [ ] Iniciar procedimento de rollback
 
-### 4.8. CT011 - Parâmetros Obrigatórios Ausentes
+2. **Curto Prazo (15-60 minutos)**:
+   - [ ] Executar rollback completo
+   - [ ] Validar restauração do sistema
+   - [ ] Documentar falhas encontradas
+   - [ ] Notificar stakeholders
 
-**Objetivo**: Validar tratamento de parâmetros obrigatórios não fornecidos
+3. **Médio Prazo (1-24 horas)**:
+   - [ ] Análise de causa raiz
+   - [ ] Correção dos problemas identificados
+   - [ ] Novo planejamento de deploy
+   - [ ] Atualização de procedimentos
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT011-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036",
-    "args": {}
-  }
-}
-```
-
-**Resultado Esperado**:
-- Status: error
-- Código: MISSING_REQUIRED_PARAMETERS
-- Mensagem: "Campo obrigatório não encontrado: [campo_obrigatorio]"
+**Justificativa da Ausência de Rollback Parcial**:
+Não é possível realizar rollback parcial devido à natureza integrada dos componentes. O workflow TIM-S3 depende de múltiplas rules e configurações que devem ser consistentes. Um rollback parcial poderia deixar o sistema em estado inconsistente, causando falhas adicionais.
 
 ---
 
-### 4.9. CT012 - Operação Inválida
+## 4. AMBIENTE DE DISASTER RECOVERY
 
-**Objetivo**: Validar tratamento de operação inválida
+### 4.1. Área: IT-OPS - DR
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT012-001",
-    "user": "F8015590",
-    "operation": "invalid",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+#### **Atividades no Ambiente DR**
 
-**Resultado Esperado**:
-- Status: error
-- Código: INVALID_OPERATION
-- Mensagem: "Operação inválida - invalid. Deve ser 'Add' ou 'Remove'"
+**4.1.1. Preparação do Ambiente DR**
+- [ ] Verificar disponibilidade do ambiente DR
+- [ ] Validar conectividade de rede
+- [ ] Confirmar backup recente do ambiente principal
+- [ ] Verificar recursos disponíveis
 
----
+**4.1.2. Deploy no Ambiente DR**
+- [ ] Executar backup do ambiente DR atual
+- [ ] Importar workflows para IdentityIQ DR
+- [ ] Importar rules para IdentityIQ DR
+- [ ] Importar templates de email
+- [ ] Configurar variáveis do workflow
+- [ ] Configurar custom `TIM-S3-Applications`
+- [ ] Configurar monitoramento
 
-## 5. CASOS DE TESTE DE INTEGRAÇÃO
+**4.1.3. Validação no Ambiente DR**
+- [ ] Executar testes funcionais básicos
+- [ ] Validar conectividade com S3
+- [ ] Verificar logs e auditoria
+- [ ] Testar procedimento de failover
 
-### 5.1. CT013 - Falha na Autenticação S3
+### 4.2. Área: TIM - Desenvolvimento
 
-**Objetivo**: Validar tratamento de falha na autenticação com API S3
+#### **Configuração da Integração DR**
 
-**Pré-condições**:
-- API Key ou Secret incorretos
-- API S3 indisponível
+**4.2.1. Configuração S3 para DR**
+- [ ] Configurar endpoint DR no S3
+- [ ] Validar credenciais de API DR
+- [ ] Configurar failover automático
+- [ ] Testar conectividade DR
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT013-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+**4.2.2. Validação de Dados DR**
+- [ ] Sincronizar dados de identidades
+- [ ] Validar roles e perfis
+- [ ] Configurar aprovadores
+- [ ] Verificar mapeamentos de sistemas
 
-**Resultado Esperado**:
-- Status: error
-- Código: AUTHENTICATION_FAILED
-- Mensagem: "Falha ao obter token de autenticação"
+### 4.3. Área: TIM - Cybersecurity
 
----
+#### **Validação de Segurança DR**
 
-### 5.2. CT014 - Timeout na API S3
+**4.3.1. Testes de Segurança DR**
+- [ ] Executar testes de segurança básicos
+- [ ] Validar auditoria e logs
+- [ ] Verificar conformidade
+- [ ] Testar procedimento de failover
 
-**Objetivo**: Validar tratamento de timeout na comunicação com API S3
-
-**Pré-condições**:
-- API S3 com resposta lenta (> 30 segundos)
-
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT014-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
-
-**Resultado Esperado**:
-- Status: error
-- Código: TIMEOUT
-- Mensagem: "Timeout na comunicação com API S3"
+**4.3.2. Validação de Governança DR**
+- [ ] Validar fluxo de aprovação
+- [ ] Verificar controles de acesso
+- [ ] Validar custom de sistemas
+- [ ] Verificar logs de auditoria
 
 ---
 
-### 5.3. CT015 - Falha no Provisionamento
+## 5. CRONOGRAMA DE EXECUÇÃO
 
-**Objetivo**: Validar tratamento de falha no provisionamento
+### 5.1. Timeline Detalhado
 
-**Pré-condições**:
-- Sistema de destino indisponível
-- Erro na aplicação de destino
+| Horário | Atividade | Responsável | Duração |
+|---------|-----------|-------------|---------|
+| 20:00 | Backup e preparação | IT-OPS | 30 min |
+| 20:30 | Deploy workflows e rules | IT-OPS | 45 min |
+| 21:15 | Configuração de variáveis | IT-OPS | 30 min |
+| 21:45 | Configuração custom | IT-OPS | 30 min |
+| 22:15 | Configuração S3 | TIM-Dev | 30 min |
+| 22:45 | Validação técnica | IT-OPS | 30 min |
+| 23:15 | Validação funcional | TIM-Cyber | 45 min |
+| 00:00 | Validação final | TIM-Cyber | 30 min |
+| 00:30 | Liberação para produção | TIM-Cyber | 15 min |
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT015-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+### 5.2. Janela de Manutenção
 
-**Resultado Esperado**:
-- Status: error
-- Código: PROVISIONING_FAILED
-- Mensagem: "Falha no provisionamento do acesso"
+- **Início**: [Data] às 20:00
+- **Fim**: [Data] às 01:00
+- **Duração Total**: 5 horas
+- **Tempo de Rollback**: 2 horas (se necessário)
 
 ---
 
-## 6. CASOS DE TESTE DE PERFORMANCE
+## 6. CRITÉRIOS DE SUCESSO
 
-### 6.1. CT016 - Carga Normal
+### 6.1. Critérios Técnicos
+- [ ] Todos os workflows importados com sucesso
+- [ ] Todas as rules funcionando corretamente
+- [ ] Conectividade S3 ↔ SmartID estabelecida
+- [ ] Logs de auditoria funcionando
+- [ ] Monitoramento ativo
 
-**Objetivo**: Validar performance com carga normal
+### 6.2. Critérios Funcionais
+- [ ] 100% dos testes de validação aprovados
+- [ ] Fluxo de aprovação funcionando
+- [ ] Emails de notificação enviados
+- [ ] Auditoria completa
+- [ ] Performance dentro dos limites
 
-**Pré-condições**:
-- 10 requisições simultâneas
-- Dados válidos
-
-**Passos**:
-1. Enviar 10 requisições simultâneas
-2. Medir tempo de resposta
-3. Verificar taxa de sucesso
-
-**Resultado Esperado**:
-- Tempo médio de resposta: < 30 segundos
-- Taxa de sucesso: 100%
-- Sem erros de concorrência
-
----
-
-### 6.2. CT017 - Carga Alta
-
-**Objetivo**: Validar performance com carga alta
-
-**Pré-condições**:
-- 50 requisições simultâneas
-- Dados válidos
-
-**Passos**:
-1. Enviar 50 requisições simultâneas
-2. Medir tempo de resposta
-3. Verificar taxa de sucesso
-
-**Resultado Esperado**:
-- Tempo médio de resposta: < 60 segundos
-- Taxa de sucesso: > 95%
-- Sem erros de concorrência
+### 6.3. Critérios de Negócio
+- [ ] Processo de concessão/remoção funcionando
+- [ ] Controles de segurança ativos
+- [ ] Conformidade com políticas
+- [ ] Usuários treinados e operacionais
 
 ---
 
-## 7. CASOS DE TESTE DE SEGURANÇA
+## 7. RISCOS E MITIGAÇÕES
 
-### 7.1. CT018 - Injeção SQL
+### 7.1. Riscos Identificados
 
-**Objetivo**: Validar proteção contra injeção SQL
+| Risco | Probabilidade | Impacto | Mitigação |
+|-------|---------------|---------|-----------|
+| Falha na conectividade S3-SmartID | Média | Alto | Teste prévio de conectividade |
+| Problemas de performance | Baixa | Médio | Monitoramento contínuo |
+| Falha na autenticação | Baixa | Alto | Validação de credenciais |
+| Erro na configuração | Média | Alto | Testes de validação |
+| Falha no rollback | Baixa | Crítico | Procedimento testado |
 
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT018-001",
-    "user": "F8015590'; DROP TABLE users; --",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036"
-  }
-}
-```
+### 7.2. Plano de Contingência
 
-**Resultado Esperado**:
-- Status: error
-- Código: INVALID_INPUT
-- Mensagem: "Dados de entrada inválidos"
-- Sistema não comprometido
+- **Falha Crítica**: Rollback imediato
+- **Falha de Performance**: Otimização e monitoramento
+- **Falha de Conectividade**: Troubleshooting de rede
+- **Falha de Configuração**: Correção e validação
 
 ---
 
-### 7.2. CT019 - XSS
+## 8. APROVAÇÕES
 
-**Objetivo**: Validar proteção contra XSS
-
-**Dados de Entrada**:
-```json
-{
-  "workflowArgs": {
-    "requestId": "CT019-001",
-    "user": "F8015590",
-    "operation": "add",
-    "system": "BDOH",
-    "profile": "AFBANCR1",
-    "approver": "F8000036",
-    "args": {
-      "area": "<script>alert('XSS')</script>"
-    }
-  }
-}
-```
-
-**Resultado Esperado**:
-- Status: success ou error (dependendo da validação)
-- Script não executado
-- Dados sanitizados
+| Área | Responsável | Assinatura | Data |
+|------|-------------|------------|------|
+| IT-OPS | [Nome] | [ ] | [Data] |
+| TIM-Desenvolvimento | [Nome] | [ ] | [Data] |
+| TIM-Cybersecurity | [Nome] | [ ] | [Data] |
+| TIM-Gerência | [Nome] | [ ] | [Data] |
 
 ---
 
-## 8. CASOS DE TESTE DE APROVAÇÃO
-
-### 8.1. CT020 - Aprovação Aprovada
-
-**Objetivo**: Validar fluxo de aprovação aprovada
-
-**Pré-condições**:
-- Workflow em estado de aprovação
-- Aprovador acessa work item
-
-**Passos**:
-1. Acessar work item no SmartID
-2. Aprovar requisição
-3. Verificar continuação do workflow
-4. Verificar provisionamento
-
-**Resultado Esperado**:
-- Work item aprovado
-- Workflow continua para provisionamento
-- Acesso concedido/removido
-
----
-
-### 8.2. CT021 - Aprovação Rejeitada
-
-**Objetivo**: Validar fluxo de aprovação rejeitada
-
-**Pré-condições**:
-- Workflow em estado de aprovação
-- Aprovador acessa work item
-
-**Passos**:
-1. Acessar work item no SmartID
-2. Rejeitar requisição
-3. Verificar finalização do workflow
-4. Verificar não provisionamento
-
-**Resultado Esperado**:
-- Work item rejeitado
-- Workflow finalizado com erro
-- Acesso não concedido/removido
-
----
-
-### 8.3. CT022 - Timeout de Aprovação
-
-**Objetivo**: Validar tratamento de timeout de aprovação
-
-**Pré-condições**:
-- Workflow em estado de aprovação
-- Aprovador não responde em 24 horas
-
-**Passos**:
-1. Aguardar 24 horas
-2. Verificar timeout automático
-3. Verificar finalização do workflow
-
-**Resultado Esperado**:
-- Timeout automático
-- Workflow finalizado com erro
-- Acesso não concedido/removido
-
----
-
-## 9. CASOS DE TESTE DE MONITORAMENTO
-
-### 9.1. CT023 - Logs de Auditoria
-
-**Objetivo**: Validar geração de logs de auditoria
-
-**Pré-condições**:
-- Workflow executado com sucesso
-
-**Passos**:
-1. Executar workflow completo
-2. Verificar logs no IdentityIQ
-3. Verificar logs da API S3
-4. Verificar logs de auditoria
-
-**Resultado Esperado**:
-- Logs detalhados gerados
-- Rastreabilidade completa
-- Informações de auditoria corretas
-
----
-
-### 9.2. CT024 - Métricas de Performance
-
-**Objetivo**: Validar coleta de métricas de performance
-
-**Pré-condições**:
-- Workflow executado múltiplas vezes
-
-**Passos**:
-1. Executar 10 workflows
-2. Verificar métricas no PRTG
-3. Verificar alertas de performance
-
-**Resultado Esperado**:
-- Métricas coletadas corretamente
-- Alertas gerados quando necessário
-- Performance dentro dos limites
-
----
-
-## 10. PLANO DE EXECUÇÃO
-
-### 10.1. Ordem de Execução
-
-1. **Fase 1 - Testes Básicos** (CT001-CT003)
-2. **Fase 2 - Testes de Validação** (CT004-CT012)
-3. **Fase 3 - Testes de Integração** (CT013-CT015)
-4. **Fase 4 - Testes de Performance** (CT016-CT017)
-5. **Fase 5 - Testes de Segurança** (CT018-CT019)
-6. **Fase 6 - Testes de Aprovação** (CT020-CT022)
-7. **Fase 7 - Testes de Monitoramento** (CT023-CT024)
-
-### 10.2. Critérios de Aprovação
-
-- **Taxa de Sucesso**: > 95% para testes funcionais
-- **Performance**: Tempo de resposta < 30 segundos (carga normal)
-- **Segurança**: 100% dos testes de segurança aprovados
-- **Auditoria**: 100% dos logs gerados corretamente
-
-### 10.3. Ambiente de Teste
-
-- **Servidor**: smartid-homolog.internal.timbrasil.com.br
-- **Banco de Dados**: IdentityIQ Homologação
-- **API S3**: Ambiente de homologação
-- **Dados**: Conjunto específico para testes
-
----
-
-## 11. RELATÓRIO DE TESTES
-
-### 11.1. Template de Relatório
-
-| CT | Descrição | Status | Tempo | Observações |
-|----|-----------|--------|-------|-------------|
-| CT001 | Concessão de Acesso com Sucesso | ✅ | 15s | - |
-| CT002 | Remoção de Acesso com Sucesso | ✅ | 12s | - |
-| CT003 | Concessão com App Desconectada | ✅ | 25s | - |
-| ... | ... | ... | ... | ... |
-
-### 11.2. Métricas de Qualidade
-
-- **Cobertura de Testes**: 100% dos cenários críticos
-- **Taxa de Sucesso**: [X]%
-- **Tempo Médio de Execução**: [X] segundos
-- **Bugs Encontrados**: [X]
-- **Bugs Críticos**: [X]
-
----
-
-## 12. CONCLUSÕES
-
-Este documento de casos de teste cobre todos os cenários críticos da integração S3 e SmartID, garantindo:
-
-- Validação completa da funcionalidade
-- Cobertura de cenários de erro
-- Testes de performance e segurança
-- Validação de aprovação e auditoria
-- Monitoramento e métricas
-
-A execução destes testes garante a qualidade e confiabilidade da integração antes da implementação em produção.
-
----
-
-**Documento**: CASOS_DE_TESTE_S3_SMARTID.md  
+**Documento**: FORM_CHANGE_DEPLOY_S3_SMARTID.md  
 **Versão**: 1.0  
 **Data**: 15 de Janeiro de 2024  
-**Status**: Aprovado  
-**Próxima Revisão**: 15 de Julho de 2024
+**Status**: Aguardando Aprovação
