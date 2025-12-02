@@ -1,115 +1,153 @@
-# Step: Remove Token - Fluxo Leaver
+# Melhoria: Exceção de Aplicações no Fluxo de Férias/Afastamento
 
-## Visão Geral
+## 1. Contexto e Problema Identificado
 
-Este step foi desenvolvido para remover tokens de autenticação biométrica (Typing DNA e Hypr) durante o processo de desligamento de funcionários e terceiros no fluxo Leaver.
+No IdentityIQ, algumas aplicações apresentavam problemas durante o processo de inativação/ativação no fluxo de afastamento e férias. Esses problemas ocorriam quando o sistema tentava desabilitar ou habilitar aplicações que não deveriam ser processadas nesses cenários específicos, resultando em:
 
-## Funcionalidade
+- Falhas no processamento do fluxo de afastamento/férias
+- Erros durante operações de disable/enable em aplicações específicas
+- Impacto na experiência do usuário e no processo de gestão de identidades
 
-O step verifica se a identidade possui uma conta no Ping Directory com atributo `onboardingStatus` configurado e remove o token correspondente da API externa.
+## 2. Solução Implementada
 
-### Tipos de Token Suportados
+Foi implementada uma solução que permite **excluir aplicações específicas** do processamento durante os fluxos de afastamento e férias através de um atributo configurável na aplicação.
 
-- **TYPE**: Token Typing DNA (biometria de digitação)
-- **HYPER**: Token Hypr (autenticação biométrica)
+### 2.1. Componentes da Solução
 
-## Configuração
+1. **Atributo de Aplicação**: "Exceção em Férias/Afastamento"
+   - Tipo: Boolean
+   - Valor padrão: `false`
+   - Quando configurado como `true`, a aplicação é ignorada durante o fluxo
 
-### Parâmetros de Entrada
+2. **Modificação na Rule `[sec]common_lib`**
+   - Método ajustado: `disableApps`
+   - Lógica implementada: verificação do atributo antes de processar a aplicação
 
-- **identityName**: Nome da identidade a ser processada
-- **appName**: Nome da aplicação (fixo: "Ping Directory")
+## 3. Detalhes Técnicos da Implementação
 
-### APIs Integradas
+### 3.1. Atributo Criado
 
-#### Typing DNA API
-- **URL**: `https://verify.typingdna.com/oidc/webhook/reset-profile`
-- **Método**: POST
-- **Content-Type**: `application/x-www-form-urlencoded`
-- **Autenticação**: Basic Auth
-- **Payload**: `user_id={uid}`
+**Nome do Atributo**: `Exceção em Férias/Afastamento`  
+**Tipo**: Boolean  
+**Localização**: Objeto Application (Aplicação)  
+**Propósito**: Indicar se a aplicação deve ser ignorada durante os fluxos de afastamento e férias
 
-#### Hypr API
-- **URL**: `https://tim.hypr.com/cc/api/rpUser/delete`
-- **Método**: POST
-- **Content-Type**: `application/json`
-- **Autenticação**: Custom Header
-- **Payload**: `{"appId":"pingFederateProd","username":"{uid}"}`
+### 3.2. Modificação na Rule `[sec]common_lib`
 
-## Fluxo de Execução
+A rule `[sec]common_lib` foi ajustada no método `disableApps` para incluir a verificação do atributo de exceção. A lógica implementada segue o seguinte fluxo:
 
-1. **Busca da Identidade**: Localiza a identidade pelo nome fornecido
-2. **Verificação de Links**: Verifica se a identidade possui conta no Ping Directory
-3. **Análise do onboardingStatus**: Identifica o tipo de token configurado
-4. **Remoção do Token**: Chama a API correspondente para remover o token
-5. **Limpeza do Atributo**: Remove o atributo `onboardingStatus` do Ping Directory
-6. **Logging**: Registra todas as operações para auditoria
+1. **Iteração sobre as aplicações** a serem processadas
+2. **Verificação do atributo** "Exceção em Férias/Afastamento" para cada aplicação
+3. **Condição de exclusão**: Se o atributo estiver configurado como `true`, a aplicação é **ignorada** (não processada)
+4. **Processamento normal**: Se o atributo estiver como `false` ou não configurado, a aplicação é processada normalmente
 
-## Código Principal
+#### Pseudocódigo da Implementação
 
-```java
-// Verificação do onboardingStatus
-if ("TYPE".equalsIgnoreCase(onboardingStatus)) {
-    result = removeTokenTyping(uid);
-    if (result.contains("sucesso")) {
-        clearOnboardingStatus(identityName, link.getNativeIdentity(), onboardingStatus);
-    }
-} else if ("HYPER".equalsIgnoreCase(onboardingStatus)) {
-    result = removeTokenHypr(uid);
-    if (result.contains("sucesso")) {
-        clearOnboardingStatus(identityName, link.getNativeIdentity(), onboardingStatus);
-    }
-}
+```
+Para cada aplicação no fluxo:
+    Se aplicação.Exceção_em_Férias_Afastamento == TRUE:
+        Ignorar aplicação (não processar)
+        Log: "Aplicação [nome] ignorada devido à exceção em Férias/Afastamento"
+    Caso contrário:
+        Processar aplicação normalmente (disable/enable)
 ```
 
-## Tratamento de Erros
+### 3.3. Comportamento
 
-- **Identidade não encontrada**: Retorna mensagem de erro específica
-- **Conta Ping Directory não encontrada**: Continua processamento
-- **onboardingStatus vazio/nulo**: Retorna mensagem informativa
-- **Falha na API**: Registra erro e retorna mensagem de falha
+- **Atributo = `true`**: Aplicação **NÃO** será processada durante o fluxo de afastamento/férias
+- **Atributo = `false` ou não configurado**: Aplicação será processada **NORMALMENTE**
 
-## Logs Gerados
+## 4. Configuração do Atributo
 
-- `Removendo tokenPing`: Início do processamento
-- `Verificando links da identidade`: Busca por contas vinculadas
-- `Encontrada aplicação Ping Directory`: Conta encontrada
-- `onboardingStatus encontrado`: Tipo de token identificado
-- `Removendo token [Tipo] para uid`: Início da remoção
-- `Resultado da remoção do token`: Status da operação
-- `Limpando atributo onboardingStatus`: Limpeza do atributo
+### 4.1. Como Configurar
 
-## Dependências Técnicas
+Para configurar uma aplicação como exceção no fluxo de férias/afastamento:
 
-- **JAX-RS Client**: Para chamadas HTTP às APIs externas
-- **SailPoint Provisioning**: Para modificação de atributos no Ping Directory
-- **Base64 Encoding**: Para autenticação Basic Auth
+1. Acesse o **IdentityIQ**
+2. Navegue até **Admin > Applications**
+3. Selecione a aplicação desejada
+4. Localize o atributo **"Exceção em Férias/Afastamento"**
+5. Configure o valor como **`true`** para ignorar a aplicação, ou **`false`** para processá-la normalmente
+6. Salve as alterações
 
-## Segurança
+### 4.2. Quando Usar
 
-- Credenciais das APIs são configuradas como constantes no código
-- Autenticação Basic Auth para Typing DNA
-- Custom Header Authorization para Hypr
-- Logs não expõem informações sensíveis
+Configure o atributo como `true` nas seguintes situações:
 
-## Monitoramento
+- Aplicações que apresentam problemas técnicos durante disable/enable
+- Aplicações que não devem ser inativadas/ativadas em cenários de férias/afastamento
+- Aplicações críticas que precisam manter acesso durante períodos de afastamento
+- Sistemas legados ou integrações com limitações técnicas específicas
 
-O step gera logs detalhados que permitem:
-- Rastreamento de execução
-- Identificação de falhas
-- Auditoria de operações
-- Troubleshooting de problemas
+## 5. Impactos e Considerações
 
-## Retorno
+### 5.1. Impactos Positivos
 
-- **Sucesso**: Mensagem confirmando remoção do token e limpeza do atributo
-- **Falha**: Mensagem de erro específica com detalhes da falha
-- **Não aplicável**: String vazia quando não há token para remover
+- ✅ **Redução de falhas** nos fluxos de afastamento e férias
+- ✅ **Flexibilidade** para excluir aplicações problemáticas do processamento
+- ✅ **Continuidade** do fluxo mesmo com aplicações que apresentam problemas
+- ✅ **Configuração simples** através de atributo boolean
 
-## Integração com Fluxo Leaver
+### 5.2. Considerações Importantes
 
-Este step é executado automaticamente durante o processo de desligamento, garantindo que:
-- Tokens biométricos sejam removidos das APIs externas
-- Atributos de onboarding sejam limpos
-- Auditoria completa seja mantida
-- Processo seja executado de forma transparente
+⚠️ **Atenção**: Aplicações configuradas como exceção (`true`) **NÃO serão inativadas/ativadas** durante o fluxo de afastamento/férias. Isso significa que:
+
+- O usuário pode manter acesso às aplicações mesmo estando em férias/afastamento
+- É necessário revisar periodicamente as aplicações configuradas como exceção
+- Documentar o motivo de cada aplicação configurada como exceção
+
+### 5.3. Recomendações
+
+1. **Documentação**: Mantenha um registro das aplicações configuradas como exceção e os motivos
+2. **Revisão Periódica**: Reavalie periodicamente se as exceções ainda são necessárias
+3. **Testes**: Realize testes do fluxo após configurar novas exceções
+4. **Comunicação**: Informe aos stakeholders sobre aplicações que não serão processadas
+
+## 6. Logs e Troubleshooting
+
+### 6.1. Logs Gerados
+
+Durante a execução do método `disableApps`, a rule gera logs quando uma aplicação é ignorada:
+
+```
+[INFO] Aplicação [Nome da Aplicação] ignorada devido à exceção em Férias/Afastamento
+```
+
+### 6.2. Verificação de Configuração
+
+Para verificar se uma aplicação está configurada como exceção:
+
+1. Acesse a aplicação no IdentityIQ
+2. Verifique o valor do atributo "Exceção em Férias/Afastamento"
+3. Consulte os logs durante a execução do fluxo
+
+## 7. Compatibilidade
+
+- **Versão do IdentityIQ**: Compatível com versões que suportam atributos customizados em Application
+- **Backward Compatibility**: Aplicações sem o atributo configurado continuam funcionando normalmente (comportamento padrão: `false`)
+
+## 8. Manutenção Futura
+
+### 8.1. Monitoramento
+
+- Acompanhe os logs do método `disableApps` para identificar aplicações ignoradas
+- Monitore falhas nos fluxos de afastamento/férias para identificar necessidade de novas exceções
+
+### 8.2. Melhorias Futuras
+
+Possíveis melhorias que podem ser implementadas:
+
+- Interface administrativa para visualizar todas as aplicações com exceção
+- Relatório de aplicações ignoradas durante cada execução do fluxo
+- Validação automática de aplicações configuradas como exceção
+
+---
+
+## 9. Contato e Suporte
+
+Para dúvidas ou problemas relacionados a esta funcionalidade, entre em contato com a equipe de IdentityIQ.
+
+**Data de Implementação**: [Data a ser preenchida]  
+**Versão do Documento**: 1.0  
+**Autor**: Equipe de Desenvolvimento IdentityIQ
+
