@@ -1,153 +1,157 @@
-# Melhoria: Exceção de Aplicações no Fluxo de Férias/Afastamento
+# Análise e Otimização de Alocação de Recursos - IGA Gamma
 
-## 1. Contexto e Problema Identificado
+## Resumo Executivo
 
-No IdentityIQ, algumas aplicações apresentavam problemas durante o processo de inativação/ativação no fluxo de afastamento e férias. Esses problemas ocorriam quando o sistema tentava desabilitar ou habilitar aplicações que não deveriam ser processadas nesses cenários específicos, resultando em:
+Este documento apresenta a análise da alocação atual de recursos e uma proposta de otimização baseada nas necessidades dos projetos.
 
-- Falhas no processamento do fluxo de afastamento/férias
-- Erros durante operações de disable/enable em aplicações específicas
-- Impacto na experiência do usuário e no processo de gestão de identidades
+## Situação Atual
 
-## 2. Solução Implementada
+### Time Disponível
+- **5 pessoas** totalizando **20 FTE disponíveis** (5 pessoas × 4 FTE cada)
+- Todas as pessoas possuem skills em **IIQ**, com variações em **ISC** e **DEV**
 
-Foi implementada uma solução que permite **excluir aplicações específicas** do processamento durante os fluxos de afastamento e férias através de um atributo configurável na aplicação.
+### Necessidades dos Projetos
+- **Total necessário (ideal): 6.6 FTE**
+- **Saldo disponível: 13.4 FTE** (capacidade ociosa)
 
-### 2.1. Componentes da Solução
+### Problemas Identificados na Alocação Atual
 
-1. **Atributo de Aplicação**: "Exceção em Férias/Afastamento"
-   - Tipo: Boolean
-   - Valor padrão: `false`
-   - Quando configurado como `true`, a aplicação é ignorada durante o fluxo
+1. **TIM - Excesso de alocação**
+   - Contratado: 3.0 FTE
+   - Atual: 11.0 FTE ⚠️
+   - Ideal: 4.0 FTE
+   - **Problema**: Excesso de 7.0 FTE
 
-2. **Modificação na Rule `[sec]common_lib`**
-   - Método ajustado: `disableApps`
-   - Lógica implementada: verificação do atributo antes de processar a aplicação
+2. **Riachuelo - Déficit**
+   - Contratado: 1.0 FTE
+   - Atual: 0.0 FTE ⚠️
+   - Ideal: 1.0 FTE
+   - **Problema**: Projeto sem alocação
 
-## 3. Detalhes Técnicos da Implementação
+3. **Itau CL - Alocação acima do ideal**
+   - Atual: 5.5 FTE (não consta na lista com requisitos específicos)
 
-### 3.1. Atributo Criado
+4. **Projetos T&M - Alocação acima do necessário**
+   - XP: 1.0 FTE atual vs 0.3 FTE ideal
+   - B3: 1.5 FTE atual vs 0.3 FTE ideal
+   - C6: 1.0 FTE atual (não consta na lista)
 
-**Nome do Atributo**: `Exceção em Férias/Afastamento`  
-**Tipo**: Boolean  
-**Localização**: Objeto Application (Aplicação)  
-**Propósito**: Indicar se a aplicação deve ser ignorada durante os fluxos de afastamento e férias
+## Proposta de Alocação Otimizada
 
-### 3.2. Modificação na Rule `[sec]common_lib`
+### Estratégia de Alocação
 
-A rule `[sec]common_lib` foi ajustada no método `disableApps` para incluir a verificação do atributo de exceção. A lógica implementada segue o seguinte fluxo:
+A nova alocação foi otimizada considerando:
 
-1. **Iteração sobre as aplicações** a serem processadas
-2. **Verificação do atributo** "Exceção em Férias/Afastamento" para cada aplicação
-3. **Condição de exclusão**: Se o atributo estiver configurado como `true`, a aplicação é **ignorada** (não processada)
-4. **Processamento normal**: Se o atributo estiver como `false` ou não configurado, a aplicação é processada normalmente
+1. **Priorização por necessidade**
+   - TIM: 4.0 FTE (maior demanda, projeto 100%)
+   - Itau CL: 1.0 FTE (projeto 100%)
+   - Riachuelo: 1.0 FTE (T&M)
+   - XP: 0.3 FTE (T&M)
+   - B3: 0.3 FTE (T&M)
 
-#### Pseudocódigo da Implementação
+2. **Distribuição balanceada**
+   - Períodos consecutivos (manhã/tarde do mesmo dia) para projetos dedicados
+   - Distribuição de T&M entre várias pessoas para flexibilidade
 
-```
-Para cada aplicação no fluxo:
-    Se aplicação.Exceção_em_Férias_Afastamento == TRUE:
-        Ignorar aplicação (não processar)
-        Log: "Aplicação [nome] ignorada devido à exceção em Férias/Afastamento"
-    Caso contrário:
-        Processar aplicação normalmente (disable/enable)
-```
+3. **Consideração de skills e experiência**
+   - Priorização de pessoas com mais skills para projetos complexos
+   - Squad Lead e Senior para projetos maiores
 
-### 3.3. Comportamento
+### Alocação Proposta por Pessoa
 
-- **Atributo = `true`**: Aplicação **NÃO** será processada durante o fluxo de afastamento/férias
-- **Atributo = `false` ou não configurado**: Aplicação será processada **NORMALMENTE**
+#### Fabiel Rodrigues (Senior) - IIQ, ISC, DEV
+- **Total: 4.0 FTE**
+- TIM: 1.0 FTE (SM, ST)
+- Itau CL: 1.0 FTE (TM, TT) - período consecutivo
+- Riachuelo (T&M): 1.0 FTE (QM, QT) - período consecutivo
+- XP (T&M): 0.5 FTE (QIM)
+- B3 (T&M): 0.5 FTE (QIT)
 
-## 4. Configuração do Atributo
+**Justificativa**: Pessoal com mais skills (IIQ, ISC, DEV) e experiência (Senior), ideal para múltiplos projetos e suporte T&M.
 
-### 4.1. Como Configurar
+#### Jeferson Santos (Squad Lead) - IIQ, ISC, DEV
+- **Total: 1.0 FTE**
+- TIM: 1.0 FTE (SM, ST)
 
-Para configurar uma aplicação como exceção no fluxo de férias/afastamento:
+**Justificativa**: Squad Lead focado em TIM, projeto de maior prioridade e complexidade.
 
-1. Acesse o **IdentityIQ**
-2. Navegue até **Admin > Applications**
-3. Selecione a aplicação desejada
-4. Localize o atributo **"Exceção em Férias/Afastamento"**
-5. Configure o valor como **`true`** para ignorar a aplicação, ou **`false`** para processá-la normalmente
-6. Salve as alterações
+#### Lucas Bueno (Senior) - IIQ, ISC
+- **Total: 1.0 FTE**
+- TIM: 1.0 FTE (SM, ST)
 
-### 4.2. Quando Usar
+**Justificativa**: Senior com skills IIQ/ISC, suporte ao projeto TIM.
 
-Configure o atributo como `true` nas seguintes situações:
+#### Guilherme Lima (Pleno) - IIQ
+- **Total: 0.5 FTE**
+- TIM: 0.5 FTE (SM)
 
-- Aplicações que apresentam problemas técnicos durante disable/enable
-- Aplicações que não devem ser inativadas/ativadas em cenários de férias/afastamento
-- Aplicações críticas que precisam manter acesso durante períodos de afastamento
-- Sistemas legados ou integrações com limitações técnicas específicas
+**Justificativa**: Nível Pleno, alocação parcial para TIM.
 
-## 5. Impactos e Considerações
+#### Romeu Oggiam (Ongoing Pl) - IIQ, ISC
+- **Total: 0.5 FTE**
+- TIM: 0.5 FTE (SM)
 
-### 5.1. Impactos Positivos
+**Justificativa**: Alocação parcial para TIM.
 
-- ✅ **Redução de falhas** nos fluxos de afastamento e férias
-- ✅ **Flexibilidade** para excluir aplicações problemáticas do processamento
-- ✅ **Continuidade** do fluxo mesmo com aplicações que apresentam problemas
-- ✅ **Configuração simples** através de atributo boolean
+**Nota**: Na proposta otimizada, várias pessoas têm capacidade ociosa, permitindo flexibilidade para:
+- Atividades emergentes
+- Suporte adicional quando necessário
+- Melhoria contínua e desenvolvimento
+- Férias e ausências
 
-### 5.2. Considerações Importantes
+## Comparativo: Atual vs Proposta
 
-⚠️ **Atenção**: Aplicações configuradas como exceção (`true`) **NÃO serão inativadas/ativadas** durante o fluxo de afastamento/férias. Isso significa que:
+| Projeto | Contratado | Atual | Proposta | Status |
+|---------|------------|-------|----------|--------|
+| TIM | 3.0 | 11.0 | 4.0 | ✅ Otimizado |
+| Itau CL | 1.0 | 5.5 | 1.0 | ✅ Otimizado |
+| Riachuelo | 1.0 | 0.0 | 1.0 | ✅ Corrigido |
+| XP (T&M) | 0.3 | 1.0 | 0.5 | ✅ Otimizado |
+| B3 (T&M) | 0.3 | 1.5 | 0.5 | ✅ Otimizado |
 
-- O usuário pode manter acesso às aplicações mesmo estando em férias/afastamento
-- É necessário revisar periodicamente as aplicações configuradas como exceção
-- Documentar o motivo de cada aplicação configurada como exceção
+## Recomendações
 
-### 5.3. Recomendações
+### Curto Prazo
+1. **Implementar a nova alocação proposta** para corrigir os desequilíbrios
+2. **Monitorar TIM** - garantir que 4 FTE sejam suficientes (há comentário sobre muitas atividades)
+3. **Distribuir responsabilidade de Riachuelo** - atualmente sem alocação
 
-1. **Documentação**: Mantenha um registro das aplicações configuradas como exceção e os motivos
-2. **Revisão Periódica**: Reavalie periodicamente se as exceções ainda são necessárias
-3. **Testes**: Realize testes do fluxo após configurar novas exceções
-4. **Comunicação**: Informe aos stakeholders sobre aplicações que não serão processadas
+### Médio Prazo
+1. **Avaliar necessidade de contratação**
+   - O documento menciona necessidade de 1 GP/Engenheiro (Ongoing/Suporte)
+   - Com 13.4 FTE ociosos, pode ser que a contratação não seja urgente do ponto de vista de capacidade
 
-## 6. Logs e Troubleshooting
+2. **Revisar projetos T&M**
+   - Definir se C6 e Embraer devem ser mantidos
+   - Revisar alocação de T&M (atualmente 3.0 FTE vs ideal de 0.9 FTE)
 
-### 6.1. Logs Gerados
+3. **Otimização de processos**
+   - Com 67% da capacidade ociosa (13.4/20 FTE), há espaço para:
+     - Projetos adicionais
+     - Melhoria de processos
+     - Desenvolvimento de skills
 
-Durante a execução do método `disableApps`, a rule gera logs quando uma aplicação é ignorada:
+### Observações Importantes
 
-```
-[INFO] Aplicação [Nome da Aplicação] ignorada devido à exceção em Férias/Afastamento
-```
+1. **TIM - Alta demanda**
+   - O comentário indica: "Atividades de Manday, existe uma lista grande e precisa de uma pessoa dedicada"
+   - A proposta aloca 4.0 FTE distribuídos entre várias pessoas
+   - **Recomendação**: Considerar alocar 1 pessoa 100% dedicada para TIM se as atividades de Manday exigirem isso
 
-### 6.2. Verificação de Configuração
+2. **Projetos T&M**
+   - São atividades que "surgem às vezes"
+   - A proposta mantém alocação mínima (0.3-0.5 FTE) para cada
+   - Permite flexibilidade para aumentar quando necessário
 
-Para verificar se uma aplicação está configurada como exceção:
+## Arquivos Gerados
 
-1. Acesse a aplicação no IdentityIQ
-2. Verifique o valor do atributo "Exceção em Férias/Afastamento"
-3. Consulte os logs durante a execução do fluxo
+1. `analise_alocacao_recursos.py` - Script de análise
+2. `IGA - Nova Estrutura - GammaFase 1 - OTIMIZADO.csv` - CSV com alocação proposta
 
-## 7. Compatibilidade
+## Próximos Passos
 
-- **Versão do IdentityIQ**: Compatível com versões que suportam atributos customizados em Application
-- **Backward Compatibility**: Aplicações sem o atributo configurado continuam funcionando normalmente (comportamento padrão: `false`)
-
-## 8. Manutenção Futura
-
-### 8.1. Monitoramento
-
-- Acompanhe os logs do método `disableApps` para identificar aplicações ignoradas
-- Monitore falhas nos fluxos de afastamento/férias para identificar necessidade de novas exceções
-
-### 8.2. Melhorias Futuras
-
-Possíveis melhorias que podem ser implementadas:
-
-- Interface administrativa para visualizar todas as aplicações com exceção
-- Relatório de aplicações ignoradas durante cada execução do fluxo
-- Validação automática de aplicações configuradas como exceção
-
----
-
-## 9. Contato e Suporte
-
-Para dúvidas ou problemas relacionados a esta funcionalidade, entre em contato com a equipe de IdentityIQ.
-
-**Data de Implementação**: [Data a ser preenchida]  
-**Versão do Documento**: 1.0  
-**Autor**: Equipe de Desenvolvimento IdentityIQ
+1. Revisar a proposta com o time
+2. Ajustar conforme feedback e conhecimento específico dos projetos
+3. Implementar a nova alocação
+4. Monitorar e ajustar conforme necessário
 
