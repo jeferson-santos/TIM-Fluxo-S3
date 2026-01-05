@@ -16,7 +16,28 @@ Este endpoint permite solicitar a adição ou remoção de tokens RSA para usuá
 
 ### Autenticação
 
-O endpoint requer autenticação adequada no IdentityIQ. Certifique-se de incluir as credenciais necessárias na requisição.
+O endpoint requer autenticação **Basic Auth** (HTTP Basic Authentication) no IdentityIQ. É necessário incluir as credenciais de usuário e senha no cabeçalho da requisição.
+
+#### Requisitos de Autenticação
+
+1. **Basic Auth**: Utilize o método de autenticação HTTP Basic Auth
+   - **Header**: `Authorization: Basic <base64(user:password)>`
+   - O usuário e senha devem ser codificados em Base64 no formato `usuario:senha`
+
+2. **Permissões**: O usuário utilizado na autenticação deve possuir permissões adequadas no IdentityIQ para:
+   - Executar workflows
+   - Acessar o workflow `TIM-RSA`
+   - Realizar operações de gerenciamento de tokens RSA
+
+#### Exemplo de Header de Autenticação
+
+```
+Authorization: Basic dXN1YXJpbzpzZW5oYQ==
+```
+
+Onde `dXN1YXJpbzpzZW5oYQ==` é a codificação Base64 de `usuario:senha`.
+
+**Importante**: Sem as permissões adequadas, a requisição será rejeitada mesmo com credenciais válidas.
 
 ### Parâmetros da Requisição
 
