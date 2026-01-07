@@ -331,15 +331,17 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 6. ESCALONAMENTO HIERÁRQUICO (apenas Funcionário)
+## 6. ESCALONAMENTO HIERÁRQUICO (baseado no tipo do aprovador)
 
 ### CT020 - Escalonamento: Sem gestor superior na hierarquia
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo (`att_descr_status` != "Ativo")
 - Aprovador inicial não possui forward
 - Aprovador inicial não possui gestor superior (`getManager() == null`)
+
+**Nota:** Funciona para qualquer solicitante (funcionário ou terceiro), desde que o aprovador seja funcionário.
 
 **Ações:**
 - Criar solicitação para perfil `SAP_VENDAS`
@@ -354,7 +356,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ### CT021 - Escalonamento: Atingiu cargo limite sem gestor ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo
 - Escalonamento sobe na hierarquia
 - Gestor em algum nível tem `att_cargo` = "DIRETOR" (ou outro cargo limite)
@@ -373,7 +375,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ### CT022 - Escalonamento: Gestor sem att_descr_status
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo
 - Durante escalonamento, gestor encontrado não possui `att_descr_status`
 
@@ -407,7 +409,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ### CT024 - Escalonamento: Encontrou gestor ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo
 - Escalonamento sobe 3 níveis
 - No 3º nível encontra gestor com `att_descr_status` = "Ativo"
@@ -426,7 +428,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ### CT025 - Escalonamento: Não encontrou gestor ativo após N níveis
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo
 - Escalonamento sobe vários níveis mas nenhum está ativo
 - Não atingiu cargo limite e não chegou ao topo
@@ -441,25 +443,31 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT026 - Escalonamento: Não aplicado para terceiro
+### CT026 - Escalonamento: Terceiro com aprovador funcionário inativo (deve escalar)
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Terceiro"
-- Aprovador inicial não está ativo
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
+- Aprovador inicial não está ativo (`att_descr_status` != "Ativo") - ex: de férias
+- Aprovador inicial não possui forward
 
 **Ações:**
 - Criar solicitação para perfil `SAP_VENDAS`
+- Solicitante: terceiro
+- Aprovador: funcionário em férias
 
 **Resultado Esperado:**
-- ✅ Escalonamento NÃO é executado
-- ✅ Processamento segue com aprovador original ou rejeita se inválido
+- ✅ Escalonamento É executado (mesmo sendo terceiro como solicitante)
+- ✅ Sistema sobe na hierarquia do aprovador funcionário
+- ✅ Log: `N1 - Iniciando escalonamento hierárquico para {aprovador} (aprovador é funcionário e está inativo)`
+- ✅ Encontra gestor ativo ou rejeita se não encontrar
 
 ---
 
 ### CT027 - Escalonamento: Não aplicado quando tem forward ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
-- Solicitante: `tipoUsuario` = "Funcionario"
+- Aprovador configurado é funcionário (`att_tipoFunc` = "Funcionario")
 - Aprovador inicial não está ativo mas possui forward ativo
 
 **Ações:**
@@ -468,6 +476,21 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 **Resultado Esperado:**
 - ✅ Escalonamento NÃO é executado (forward ativo impede)
 - ✅ Processamento continua com forward
+
+---
+
+### CT027A - Escalonamento: Não aplicado quando aprovador é terceiro
+**Pré-condições:**
+- Perfil `SAP_VENDAS` existe
+- Aprovador configurado é terceiro (`att_tipoFunc` = "Terceiro")
+- Aprovador inicial não está ativo
+
+**Ações:**
+- Criar solicitação para perfil `SAP_VENDAS`
+
+**Resultado Esperado:**
+- ✅ Escalonamento NÃO é executado (aprovador terceiro não tem hierarquia)
+- ✅ Solicitação rejeitada automaticamente
 
 ---
 
@@ -688,7 +711,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ## CHECKLIST DE VALIDAÇÃO
 
 ### ✅ Cobertura de Cenários
-- [ ] CT001 até CT040 - Todos os casos executados
+- [ ] CT001 até CT040, CT027A - Todos os casos executados
 - [ ] Validações de aprovador (configurado/não configurado/existe/não existe/ativo/inativo)
 - [ ] Validações de workgroup (membros ativos/inativos)
 - [ ] Validações de forward (configurado/não configurado/ativo/inativo/sem atributo)
@@ -719,7 +742,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 2. **Validações de aprovador** (CT006-CT009)
 3. **Workgroup e Forward** (CT010-CT016)
 4. **Terceiros** (CT017-CT019)
-5. **Escalonamento** (CT020-CT027)
+5. **Escalonamento** (CT020-CT027A)
 6. **Duplicidade e Block List** (CT028-CT032)
 7. **Auto-aprovação** (CT033-CT036)
 8. **Fluxo completo** (CT037)
@@ -727,7 +750,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-**Total de Casos de Teste: 40**
+**Total de Casos de Teste: 41**
 
 ---
 
