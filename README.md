@@ -5,40 +5,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 1. VALIDAÇÃO DE PERFIL
+## 1. CONFIGURAÇÃO DE APROVADOR NO PERFIL
 
-### CT001 - Perfil não encontrado no sistema
-**Pré-condições:**
-- Perfil `PERFIL_INEXISTENTE` não existe no sistema
-- Solicitante válido configurado
-
-**Ações:**
-- Criar solicitação para perfil `PERFIL_INEXISTENTE`
-
-**Resultado Esperado:**
-- ✅ Solicitação rejeitada automaticamente
-- ✅ Comentário: "Rejeitado automaticamente no Nível 1: Perfil não encontrado no sistema: PERFIL_INEXISTENTE"
-- ✅ Log: `N1 - Perfil não encontrado no sistema: PERFIL_INEXISTENTE`
-
----
-
-### CT002 - Perfil encontrado com sucesso
-**Pré-condições:**
-- Perfil `SAP_VENDAS` existe no sistema
-- Perfil possui atributos: `tim_nome_sistema`, `tim_approvalN1`
-
-**Ações:**
-- Criar solicitação para perfil `SAP_VENDAS`
-
-**Resultado Esperado:**
-- ✅ Processamento continua normalmente
-- ✅ Log: `N1 - Processando item: SAP_VENDAS (Add)`
-
----
-
-## 2. CONFIGURAÇÃO DE APROVADOR NO PERFIL
-
-### CT003 - Aprovador não configurado no perfil
+### CT001 - Aprovador não configurado no perfil
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = null ou vazio
@@ -53,7 +22,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT004 - Aprovador configurado como "Disabled"
+### CT002 - Aprovador configurado como "Disabled"
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "Disabled"
@@ -68,7 +37,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT005 - Aprovador configurado como "Manager"
+### CT003 - Aprovador configurado como "Manager"
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "Manager"
@@ -85,7 +54,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT006 - Aprovador "Manager" mas solicitante sem gestor
+### CT004 - Aprovador "Manager" mas solicitante sem gestor
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "Manager"
@@ -102,7 +71,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT007 - Aprovador configurado com nome específico
+### CT005 - Aprovador configurado com nome específico
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.especifico"
@@ -117,9 +86,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 3. VALIDAÇÃO DE APROVADOR NO SISTEMA
+## 2. VALIDAÇÃO DE APROVADOR NO SISTEMA
 
-### CT008 - Aprovador configurado não encontrado no sistema
+### CT006 - Aprovador configurado não encontrado no sistema
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.inexistente"
@@ -135,7 +104,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT009 - Aprovador existe mas está inativo
+### CT007 - Aprovador existe mas está inativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.inativo"
@@ -151,7 +120,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT010 - Aprovador existe mas sem atributo att_descr_status
+### CT008 - Aprovador existe mas sem atributo att_descr_status
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.sem.status"
@@ -167,7 +136,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT011 - Aprovador válido e ativo
+### CT009 - Aprovador válido e ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.valido"
@@ -184,9 +153,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 4. VALIDAÇÃO DE WORKGROUP
+## 3. VALIDAÇÃO DE WORKGROUP
 
-### CT012 - Workgroup sem membros ativos
+### CT010 - Workgroup sem membros ativos
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "GRP_APROVADORES"
@@ -203,7 +172,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT013 - Workgroup com membros ativos
+### CT011 - Workgroup com membros ativos
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "GRP_APROVADORES"
@@ -221,9 +190,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 5. VALIDAÇÃO DE FORWARD (DELEGAÇÃO)
+## 4. VALIDAÇÃO DE FORWARD (DELEGAÇÃO)
 
-### CT014 - Forward configurado mas usuário não encontrado
+### CT012 - Forward configurado mas usuário não encontrado
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.principal"
@@ -240,7 +209,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT015 - Forward configurado mas usuário sem att_descr_status
+### CT013 - Forward configurado mas usuário sem att_descr_status
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.principal"
@@ -257,7 +226,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT016 - Forward configurado e usuário inativo
+### CT014 - Forward configurado e usuário inativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.principal"
@@ -274,7 +243,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT017 - Forward configurado e usuário ativo
+### CT015 - Forward configurado e usuário ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.principal"
@@ -292,7 +261,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT018 - Forward não configurado
+### CT016 - Forward não configurado
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.principal"
@@ -308,9 +277,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 6. TRATAMENTO DE TERCEIROS
+## 5. TRATAMENTO DE TERCEIROS
 
-### CT019 - Terceiro com aprovador configurado
+### CT017 - Terceiro com aprovador configurado
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Terceiro"
@@ -328,7 +297,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT020 - Terceiro sem aprovador configurado
+### CT018 - Terceiro sem aprovador configurado
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Terceiro"
@@ -345,7 +314,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT021 - Terceiro com aprovador configurado mas usuário não encontrado
+### CT019 - Terceiro com aprovador configurado mas usuário não encontrado
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Terceiro"
@@ -362,9 +331,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 7. ESCALONAMENTO HIERÁRQUICO (apenas Funcionário)
+## 6. ESCALONAMENTO HIERÁRQUICO (apenas Funcionário)
 
-### CT022 - Escalonamento: Sem gestor superior na hierarquia
+### CT020 - Escalonamento: Sem gestor superior na hierarquia
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -382,7 +351,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT023 - Escalonamento: Atingiu cargo limite sem gestor ativo
+### CT021 - Escalonamento: Atingiu cargo limite sem gestor ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -401,7 +370,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT024 - Escalonamento: Gestor sem att_descr_status
+### CT022 - Escalonamento: Gestor sem att_descr_status
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -418,7 +387,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT025 - Escalonamento: Gestor sem att_cargo (continua escalonamento)
+### CT023 - Escalonamento: Gestor sem att_cargo (continua escalonamento)
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -435,7 +404,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT026 - Escalonamento: Encontrou gestor ativo
+### CT024 - Escalonamento: Encontrou gestor ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -454,7 +423,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT027 - Escalonamento: Não encontrou gestor ativo após N níveis
+### CT025 - Escalonamento: Não encontrou gestor ativo após N níveis
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -472,7 +441,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT028 - Escalonamento: Não aplicado para terceiro
+### CT026 - Escalonamento: Não aplicado para terceiro
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Terceiro"
@@ -487,7 +456,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT029 - Escalonamento: Não aplicado quando tem forward ativo
+### CT027 - Escalonamento: Não aplicado quando tem forward ativo
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Solicitante: `tipoUsuario` = "Funcionario"
@@ -502,9 +471,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 8. VALIDAÇÃO DE DUPLICIDADE
+## 7. VALIDAÇÃO DE DUPLICIDADE
 
-### CT030 - Duplicidade: Múltiplos perfis do mesmo sistema (não permitido)
+### CT028 - Duplicidade: Múltiplos perfis do mesmo sistema (não permitido)
 **Pré-condições:**
 - Dois perfis: `SAP_VENDAS` e `SAP_VENDAS_AVANCADO`
 - Ambos têm `tim_nome_sistema` = "SAP"
@@ -522,7 +491,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT031 - Duplicidade: Múltiplos perfis do mesmo sistema (permitido)
+### CT029 - Duplicidade: Múltiplos perfis do mesmo sistema (permitido)
 **Pré-condições:**
 - Dois perfis: `SAP_VENDAS` e `SAP_VENDAS_AVANCADO`
 - Ambos têm `tim_nome_sistema` = "SAP"
@@ -539,7 +508,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT032 - Duplicidade: Perfis de sistemas diferentes
+### CT030 - Duplicidade: Perfis de sistemas diferentes
 **Pré-condições:**
 - Dois perfis: `SAP_VENDAS` (sistema: SAP) e `ORACLE_ERP` (sistema: ORACLE)
 
@@ -554,9 +523,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 9. BLOCK LIST
+## 8. BLOCK LIST
 
-### CT033 - Usuário em block list
+### CT031 - Usuário em block list
 **Pré-condições:**
 - Solicitante existe
 - Atributo `tim_block_list` = "true"
@@ -572,7 +541,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT034 - Usuário não está em block list
+### CT032 - Usuário não está em block list
 **Pré-condições:**
 - Solicitante existe
 - Atributo `tim_block_list` != "true" ou null
@@ -586,9 +555,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 10. AUTO-APROVAÇÃO
+## 9. AUTO-APROVAÇÃO
 
-### CT035 - Auto-aprovação: Operação Remove
+### CT033 - Auto-aprovação: Operação Remove
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Operação: Remove (não Add)
@@ -603,7 +572,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT036 - Auto-aprovação: Bypass (spadmin)
+### CT034 - Auto-aprovação: Bypass (spadmin)
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Launcher = "spadmin"
@@ -620,7 +589,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT037 - Auto-aprovação: Solicitante é o próprio aprovador
+### CT035 - Auto-aprovação: Solicitante é o próprio aprovador
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "joao.silva"
@@ -636,7 +605,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT038 - Auto-aprovação: Múltiplas regras (consolidação)
+### CT036 - Auto-aprovação: Múltiplas regras (consolidação)
 **Pré-condições:**
 - Dois perfis: `SAP_VENDAS` (Disabled) e `ORACLE_ERP` (Remove)
 
@@ -649,9 +618,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 11. FLUXO COMPLETO - APROVAÇÃO NORMAL
+## 10. FLUXO COMPLETO - APROVAÇÃO NORMAL
 
-### CT039 - Fluxo completo: Aprovação enviada com sucesso
+### CT037 - Fluxo completo: Aprovação enviada com sucesso
 **Pré-condições:**
 - Perfil `SAP_VENDAS` existe
 - Atributo `tim_approvalN1` = "aprovador.valido"
@@ -672,9 +641,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 12. LOGS E RASTREABILIDADE
+## 11. LOGS E RASTREABILIDADE
 
-### CT040 - Logs de início e fim
+### CT038 - Logs de início e fim
 **Ações:**
 - Qualquer solicitação
 
@@ -684,7 +653,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-### CT041 - Logs de processamento
+### CT039 - Logs de processamento
 **Pré-condições:**
 - Solicitante válido com gestor
 - Perfil válido
@@ -700,9 +669,9 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ---
 
-## 13. VALIDAÇÕES DE ATRIBUTOS OBRIGATÓRIOS
+## 12. VALIDAÇÕES DE ATRIBUTOS OBRIGATÓRIOS
 
-### CT042 - att_tipoFunc ausente (se usado)
+### CT040 - att_tipoFunc ausente (se usado)
 **Pré-condições:**
 - Solicitante existe mas `att_tipoFunc` = null
 - Validação pode afetar tratamento de terceiro ou escalonamento
@@ -719,8 +688,7 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 ## CHECKLIST DE VALIDAÇÃO
 
 ### ✅ Cobertura de Cenários
-- [ ] CT001 até CT042 - Todos os casos executados
-- [ ] Validações de perfil (existente/inexistente)
+- [ ] CT001 até CT040 - Todos os casos executados
 - [ ] Validações de aprovador (configurado/não configurado/existe/não existe/ativo/inativo)
 - [ ] Validações de workgroup (membros ativos/inativos)
 - [ ] Validações de forward (configurado/não configurado/ativo/inativo/sem atributo)
@@ -747,15 +715,19 @@ Documento completo de casos de teste para validar todos os cenários da regra de
 
 ## ORDEM RECOMENDADA DE EXECUÇÃO
 
-1. **Cenários básicos de perfil** (CT001-CT007)
-2. **Validações de aprovador** (CT008-CT011)
-3. **Workgroup e Forward** (CT012-CT018)
-4. **Terceiros** (CT019-CT021)
-5. **Escalonamento** (CT022-CT029)
-6. **Duplicidade e Block List** (CT030-CT034)
-7. **Auto-aprovação** (CT035-CT038)
-8. **Fluxo completo** (CT039)
-9. **Validações complementares** (CT040-CT042)
+1. **Configuração de aprovador** (CT001-CT005)
+2. **Validações de aprovador** (CT006-CT009)
+3. **Workgroup e Forward** (CT010-CT016)
+4. **Terceiros** (CT017-CT019)
+5. **Escalonamento** (CT020-CT027)
+6. **Duplicidade e Block List** (CT028-CT032)
+7. **Auto-aprovação** (CT033-CT036)
+8. **Fluxo completo** (CT037)
+9. **Validações complementares** (CT038-CT040)
+
+---
+
+**Total de Casos de Teste: 40**
 
 ---
 
