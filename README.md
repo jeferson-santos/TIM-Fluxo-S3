@@ -1,887 +1,499 @@
-# Documentação de Integração - API de Gerenciamento de Tokens RSA
+# Análise de Slow Queries - IdentityIQ MySQL Flexible (Azure)
 
-## 1. Visão Geral
+## Resumo Executivo
 
-Esta API permite adicionar ou remover tokens RSA para usuários através de uma integração REST com o IdentityIQ.
+**Período analisado:** 2026-02-20T07:37:11 a 2026-02-20T11:49:41 (4h 12min)
 
-**Endpoint Base:**
-```
-POST http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-RSA/launch
-```
-
-**Ambientes Suportados:**
-- **OnPremise**: Ambiente on-premise
-- **Cloud**: Ambiente cloud
-
----
-
-## 2. Autenticação
-
-A API utiliza **HTTP Basic Authentication**.
-
-### 2.1 Header de Autenticação
-
-```
-Authorization: Basic <base64(user:password)>
-Content-Type: application/json
-```
-
-### 2.2 Exemplo de Autenticação
-
-**JavaScript:**
-```javascript
-const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-headers: {
-  'Authorization': `Basic ${credentials}`,
-  'Content-Type': 'application/json'
-}
-```
-
-**Python:**
-```python
-import base64
-credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
-headers = {
-    'Authorization': f'Basic {credentials}',
-    'Content-Type': 'application/json'
-}
-```
-
-**cURL:**
-```bash
-curl -X POST \
-  -u username:password \
-  -H "Content-Type: application/json" \
-  -d @request.json \
-  http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-RSA/launch
-```
+**Estatísticas Gerais:**
+- **Total de queries:** 48.71k
+- **Queries únicas:** 165
+- **QPS médio:** 3.22
+- **Concorrência média:** 48.73x
+- **Tempo total de execução:** 738.314s (205 horas acumuladas)
+- **Tempo médio por query:** 15s
+- **Rows examinadas:** 2.38 bilhões
+- **Rows retornadas:** 1.24 milhões
 
 ---
 
-## 3. Estrutura da Requisição
+## Top 3 Queries Mais Problemáticas
 
-### 3.1 Formato JSON
+### 1. Query #1 - CROSS JOIN em spt_bundle_profile_relation (CRÍTICA)
 
-Todas as requisições devem seguir o formato:
-
-```json
-{
-    "workflowArgs": {
-        "requestId": "string",
-        "type": "string",
-        "operation": "string",
-        "user": "string",
-        ...
-    }
-}
+**Query:**
+```sql
+SELECT bundleprof0_.bundle_id as col_0_0_, 
+       bundleprof0_.hash_code as col_1_0_ 
+FROM spt_bundle_profile_relation bundleprof0_ 
+CROSS JOIN spt_bundle_profile_relation_object bundleprof1_ 
+WHERE bundleprof0_.bundle_id = bundleprof1_.modified_id 
+  AND bundleprof1_.type = 'TYPE_INSERT' 
+ORDER BY bundleprof0_.created DESC 
+LIMIT 1000;
 ```
 
-### 3.2 Parâmetros
+**Estatísticas:**
+- **Execuções:** 16
+- **Tempo total:** 52.692s (7.1% do tempo total)
+- **Tempo médio:** 3.293s (55 minutos por execução!)
+- **Tempo máximo:** 4.415s (73 minutos)
+- **Rows examinadas:** 2.26 bilhões (144.65M por execução em média)
+- **Rows retornadas:** 15.62k (1.000 por execução)
 
-| Parâmetro | Tipo | Obrigatório | Descrição |
-|-----------|------|-------------|-----------|
-| `requestId` | String | ✅ | ID único para rastreamento (ex: "TK001", número de ticket) |
-| `type` | String | ✅ | Ambiente: `"onpremise"` ou `"cloud"` |
-| `operation` | String | ✅ | Operação: `"addtoken"` ou `"removetoken"` |
-| `user` | String | ✅ | Matrícula do usuário (ex: "T3622753") |
-| `profile` | String | ⚠️ | Perfil do dispositivo. Obrigatório apenas se `type="onpremise"` E `operation="addtoken"`. Valores: `"IOS"`, `"Android"`, `"Desktop"` |
-| `emailToSend` | String | ⚠️ | Email para envio. Obrigatório apenas se `type="cloud"` E `operation="addtoken"` |
-| `deviceSerialNumber` | String | ❌ | Número de série do dispositivo (opcional, apenas OnPremise) |
+**Problema Identificado:**
+- CROSS JOIN sem índice adequado
+- Ordenação por `created` sem índice
+- Filtro em `type` sem índice composto
+- Exame de bilhões de linhas para retornar apenas 1.000
+
+**Recomendações:**
+
+#### Índices Necessários:
+
+```sql
+-- Índice composto na tabela spt_bundle_profile_relation_object
+-- Prioridade: ALTA
+CREATE INDEX idx_modified_id_type 
+ON spt_bundle_profile_relation_object(modified_id, type);
+
+-- Índice composto na tabela spt_bundle_profile_relation
+-- Prioridade: ALTA
+CREATE INDEX idx_bundle_created 
+ON spt_bundle_profile_relation(bundle_id, created DESC);
+
+-- Índice adicional para otimizar o JOIN
+CREATE INDEX idx_bundle_id 
+ON spt_bundle_profile_relation(bundle_id);
+```
+
+#### Otimização da Query:
+
+```sql
+-- Versão otimizada usando INNER JOIN explícito
+SELECT bundleprof0_.bundle_id as col_0_0_, 
+       bundleprof0_.hash_code as col_1_0_ 
+FROM spt_bundle_profile_relation bundleprof0_ 
+INNER JOIN spt_bundle_profile_relation_object bundleprof1_ 
+    ON bundleprof0_.bundle_id = bundleprof1_.modified_id 
+WHERE bundleprof1_.type = 'TYPE_INSERT' 
+ORDER BY bundleprof0_.created DESC 
+LIMIT 1000;
+```
+
+**Impacto Esperado:** Redução de 99%+ no tempo de execução (de ~55min para <1s)
 
 ---
 
-## 4. Operações Disponíveis
+### 2. Query #2 - SELECT FOR UPDATE em spt_identity (CRÍTICA)
 
-### 4.1 Adicionar Token OnPremise
-
-Adiciona um novo token RSA no ambiente OnPremise.
-
-**Parâmetros Obrigatórios:**
-- `requestId`
-- `type: "onpremise"`
-- `operation: "addtoken"`
-- `user`
-- `profile` (IOS, Android ou Desktop)
-
-**Exemplo de Requisição:**
-
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK001",
-        "type": "onpremise",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "profile": "IOS"
-    }
-}
+**Query:**
+```sql
+SELECT identity0_.name as col_0_0_, 
+       identity0_.iiqlock as col_1_0_ 
+FROM spt_identity identity0_ 
+WHERE identity0_.id = '0a9736457f7a1e7b817f7ec4d36c198f' 
+FOR UPDATE;
 ```
 
-**Resposta de Sucesso:**
+**Estatísticas:**
+- **Execuções:** 989
+- **Tempo total:** 47.434s (6.4% do tempo total)
+- **Tempo médio:** 48s por execução
+- **Tempo máximo:** 52s
+- **Lock time:** 47.434s (90% do tempo total - 100% do lock time global!)
+- **Rows examinadas:** 121 (0.12 por execução)
+- **Rows retornadas:** 121 (0.12 por execução)
 
-```json
-{
-    "status": null,
-    "requestID": "0a9736459b6c1b13819b8ff522d51e09",
-    "warnings": null,
-    "errors": null,
-    "retryWait": 0,
-    "attributes": {
-        "identityName": "09257316920",
-        "type": "onpremise",
-        "activationUrl": "com.rsa.securid://ctf?ctfData=200193850501325125304724240511562112550013127207153660245152163270154577437524233",
-        "user": "T3622753",
-        "operation": "addtoken",
-        "profile": "IOS"
-    },
-    "complete": false,
-    "success": false
-}
+**Problema Identificado:**
+- **LOCK TIME EXTREMAMENTE ALTO** - 90% do tempo total de lock do sistema
+- Queries bloqueando por muito tempo (10-52 segundos)
+- Possível contenção de locks ou deadlocks
+- Índice em `id` provavelmente existe, mas locks estão sendo mantidos por muito tempo
+
+**Recomendações:**
+
+#### Verificações Necessárias:
+
+```sql
+-- 1. Verificar se existe índice na coluna id (deve ser PRIMARY KEY)
+SHOW INDEX FROM spt_identity WHERE Key_name = 'PRIMARY';
+
+-- 2. Verificar transações longas
+SELECT * FROM information_schema.innodb_trx 
+WHERE trx_started < DATE_SUB(NOW(), INTERVAL 10 SECOND)
+ORDER BY trx_started;
+
+-- 3. Verificar locks ativos
+SELECT * FROM performance_schema.data_locks 
+WHERE object_schema = 'identityiq' 
+  AND object_name = 'spt_identity';
+
+-- 4. Verificar deadlocks recentes
+SHOW ENGINE INNODB STATUS\G
 ```
 
-**Campo Importante:** `attributes.activationUrl` - URL para ativação do token no dispositivo.
+#### Otimizações:
+
+1. **Reduzir tempo de transação:**
+   - Mover lógica de processamento para fora da transação
+   - Usar transações menores e mais granulares
+   - Implementar retry logic com backoff exponencial
+
+2. **Otimizar nível de isolamento:**
+   ```sql
+   -- Verificar nível atual
+   SELECT @@transaction_isolation;
+   
+   -- Considerar READ COMMITTED se aplicável
+   SET SESSION transaction_isolation = 'READ COMMITTED';
+   ```
+
+3. **Implementar lock timeout:**
+   ```sql
+   SET innodb_lock_wait_timeout = 5; -- Reduzir de padrão (50s) para 5s
+   ```
+
+4. **Adicionar índice se não existir:**
+   ```sql
+   -- Verificar estrutura da tabela
+   SHOW CREATE TABLE spt_identity;
+   
+   -- Se id não for PRIMARY KEY, criar índice único
+   CREATE UNIQUE INDEX idx_identity_id ON spt_identity(id);
+   ```
+
+**Impacto Esperado:** Redução de 80-90% no lock time
 
 ---
 
-### 4.2 Remover Token OnPremise
+### 3. Queries #3-100+ - UPDATE em spt_request (ALTA FREQUÊNCIA)
 
-Remove todos os tokens RSA do usuário no ambiente OnPremise.
-
-**Parâmetros Obrigatórios:**
-- `requestId`
-- `type: "onpremise"`
-- `operation: "removetoken"`
-- `user`
-
-**Exemplo de Requisição:**
-
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK002",
-        "type": "onpremise",
-        "operation": "removetoken",
-        "user": "T3622753"
-    }
-}
+**Query Pattern:**
+```sql
+UPDATE spt_request 
+SET created = ?, 
+    modified = ?, 
+    significant_modified = ?, 
+    owner = NULL, 
+    assigned_scope = NULL, 
+    assigned_scope_path = NULL, 
+    stack = NULL, 
+    attributes = '<Attributes>...' -- XML muito grande (12KB)
+WHERE id = ?;
 ```
 
-**Resposta de Sucesso:**
+**Estatísticas:**
+- **Total de execuções:** ~20.000+ (maioria das queries do top 100)
+- **Tempo médio:** 13-14s por UPDATE
+- **Query size:** 12KB (muito grande devido ao XML em attributes)
+- **Rows examinadas:** 1 por UPDATE (eficiente)
+- **Problema:** Tempo de execução alto mesmo com 1 row examinada
 
-```json
-{
-    "status": null,
-    "requestID": "0a9736459b6c1b13819b8ff522d51e09",
-    "warnings": null,
-    "errors": null,
-    "retryWait": 0,
-    "attributes": {
-        "identityName": "09257316920",
-        "type": "onpremise",
-        "user": "T3622753",
-        "operation": "removetoken"
-    },
-    "complete": false,
-    "success": false
-}
+**Problema Identificado:**
+- UPDATEs muito lentos (13-14s) mesmo com índice em PRIMARY KEY
+- Campo `attributes` é XML muito grande (12KB)
+- Possível problema de I/O ou contenção de locks
+- Muitas atualizações simultâneas na mesma tabela
+
+**Recomendações:**
+
+#### Verificações:
+
+```sql
+-- 1. Verificar estrutura da tabela e índices
+SHOW CREATE TABLE spt_request;
+SHOW INDEX FROM spt_request;
+
+-- 2. Verificar tamanho da tabela e fragmentação
+SELECT 
+    table_name,
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS "Size (MB)",
+    ROUND((data_free / 1024 / 1024), 2) AS "Free (MB)"
+FROM information_schema.TABLES 
+WHERE table_schema = 'identityiq' 
+  AND table_name = 'spt_request';
+
+-- 3. Verificar I/O wait
+SELECT * FROM sys.schema_table_statistics 
+WHERE table_schema = 'identityiq' 
+  AND table_name = 'spt_request';
 ```
+
+#### Otimizações:
+
+1. **Otimizar coluna attributes:**
+   ```sql
+   -- Considerar compressão da coluna
+   ALTER TABLE spt_request 
+   MODIFY COLUMN attributes LONGTEXT 
+   COMPRESSION='zlib';
+   
+   -- OU mover para tabela separada (normalização)
+   CREATE TABLE spt_request_attributes (
+       request_id VARCHAR(255) PRIMARY KEY,
+       attributes LONGTEXT,
+       FOREIGN KEY (request_id) REFERENCES spt_request(id)
+   );
+   ```
+
+2. **Adicionar índices para queries de busca:**
+   ```sql
+   -- Se houver queries filtrando por modified ou created
+   CREATE INDEX idx_modified ON spt_request(modified);
+   CREATE INDEX idx_created ON spt_request(created);
+   CREATE INDEX idx_significant_modified ON spt_request(significant_modified);
+   ```
+
+3. **Otimizar configurações do InnoDB:**
+   ```sql
+   -- Aumentar buffer pool se possível
+   SET GLOBAL innodb_buffer_pool_size = <valor_adequado>;
+   
+   -- Otimizar log files
+   SET GLOBAL innodb_log_file_size = 512M;
+   SET GLOBAL innodb_flush_log_at_trx_commit = 2; -- Cuidado: reduz durabilidade
+   ```
+
+4. **Batch Updates:**
+   - Considerar agrupar múltiplos UPDATEs em transações maiores
+   - Usar prepared statements para reduzir parsing
+
+**Impacto Esperado:** Redução de 50-70% no tempo de UPDATE
 
 ---
 
-### 4.3 Adicionar Token Cloud
+## Outras Queries Problemáticas
 
-Adiciona um novo token RSA no ambiente Cloud.
+### Query #147 - COUNT com JOINs
 
-**Parâmetros Obrigatórios:**
-- `requestId`
-- `type: "cloud"`
-- `operation: "addtoken"`
-- `user`
-- `emailToSend`
-
-**Exemplo de Requisição:**
-
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK003",
-        "type": "cloud",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "emailToSend": "usuario@timbrasil.com.br"
-    }
-}
+**Query:**
+```sql
+SELECT COUNT(identity0_.id) as col_0_0_ 
+FROM spt_identity identity0_ 
+INNER JOIN spt_identity_assigned_roles assignedro1_ 
+    ON identity0_.id = assignedro1_.identity_id 
+INNER JOIN spt_bundle bundle2_ 
+    ON assignedro1_.bundle = bundle2_.id 
+WHERE bundle2_.id = '0a9736487f6a1ec0817f6af736260909' 
+  AND identity0_.workgroup <> 1;
 ```
 
-**Resposta de Sucesso:**
+**Recomendações:**
+```sql
+-- Índices necessários
+CREATE INDEX idx_identity_assigned_roles_identity_id 
+ON spt_identity_assigned_roles(identity_id);
 
-```json
-{
-    "status": null,
-    "requestID": "0a9736459b6c1b13819b8ff522d51e09",
-    "warnings": null,
-    "errors": null,
-    "retryWait": 0,
-    "attributes": {
-        "identityName": "09257316920",
-        "type": "cloud",
-        "user": "T3622753",
-        "operation": "addtoken"
-    },
-    "complete": false,
-    "success": false
-}
-```
+CREATE INDEX idx_identity_assigned_roles_bundle 
+ON spt_identity_assigned_roles(bundle);
 
----
+CREATE INDEX idx_identity_workgroup 
+ON spt_identity(workgroup);
 
-### 4.4 Remover Token Cloud
-
-Remove todos os tokens RSA do usuário no ambiente Cloud.
-
-**Parâmetros Obrigatórios:**
-- `requestId`
-- `type: "cloud"`
-- `operation: "removetoken"`
-- `user`
-
-**Exemplo de Requisição:**
-
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK004",
-        "type": "cloud",
-        "operation": "removetoken",
-        "user": "T3622753"
-    }
-}
-```
-
-**Resposta de Sucesso:**
-
-```json
-{
-    "status": null,
-    "requestID": "0a9736459b6c1b13819b8ff522d51e09",
-    "warnings": null,
-    "errors": null,
-    "retryWait": 0,
-    "attributes": {
-        "identityName": "09257316920",
-        "type": "cloud",
-        "user": "T3622753",
-        "operation": "removetoken"
-    },
-    "complete": false,
-    "success": false
-}
-```
-
----
-
-## 5. Tratamento de Erros
-
-### 5.1 Estrutura de Resposta de Erro
-
-Quando ocorre um erro, a resposta terá a seguinte estrutura:
-
-```json
-{
-    "status": null,
-    "requestID": null,
-    "warnings": null,
-    "errors": [
-        "Status : failed\nAn unexpected error occurred: sailpoint.tools.GeneralException: <mensagem de erro detalhada>\n"
-    ],
-    "retryWait": 0,
-    "attributes": {
-        "type": "onpremise",
-        "user": "T3622753",
-        "operation": "addtoken"
-    },
-    "complete": false,
-    "success": false
-}
-```
-
-**Importante:** Sempre verificar o campo `errors`. Se `errors` for `null`, a operação foi bem-sucedida.
-
-### 5.2 Códigos HTTP
-
-| Código | Descrição |
-|--------|-----------|
-| `200` | Requisição processada (sucesso ou erro será indicado no campo `errors`) |
-| `401` | Não autorizado (credenciais inválidas) |
-| `403` | Proibido (sem permissões) |
-| `404` | Endpoint não encontrado |
-| `500` | Erro interno do servidor |
-
-### 5.3 Mensagens de Erro Comuns
-
-#### 5.3.1 Erros de Validação de Parâmetros
-
-**Campo Obrigatório Ausente:**
-```
-Parameter validation error: required parameter 'user' is missing or empty.
-```
-**Solução:** Verificar se todos os parâmetros obrigatórios foram fornecidos.
-
-**Valor Inválido para Type:**
-```
-Parameter validation error: invalid value for 'Type'. Expected 'Cloud' or 'OnPremise'. Provided value: {valor}
-```
-**Solução:** Usar `"onpremise"` ou `"cloud"` (case-insensitive).
-
-**Valor Inválido para Operation:**
-```
-Parameter validation error: invalid value for 'Operation'. Allowed operations for Type 'OnPremise' are: 'addToken' or 'removeToken'. Provided value: {valor}
-```
-**Solução:** Usar `"addtoken"` ou `"removetoken"` (case-insensitive).
-
-**Perfil Inválido:**
-```
-Parameter validation error: invalid value for 'profile'. Valid values: 'IOS', 'Desktop', or 'Android'. Provided value: {valor}
-```
-**Solução:** Usar `"IOS"`, `"Android"` ou `"Desktop"` (case-insensitive).
-
-**Perfil Obrigatório Ausente:**
-```
-Parameter validation error: required parameter 'profile' is missing or empty. Valid values: 'IOS', 'Desktop', or 'Android'.
-```
-**Solução:** Fornecer o parâmetro `profile` quando `type="onpremise"` e `operation="addtoken"`.
-
-#### 5.3.2 Erros de Identidade
-
-**Identidade Não Encontrada:**
-```
-Identity error: identity not found with matricula: {matricula}
-```
-**Causa:** A matrícula fornecida não existe no IdentityIQ.
-
-**Solução:**
-- Verificar se a matrícula está correta
-- Confirmar que o usuário existe no sistema
-- Verificar o atributo `att_usuario` da identidade
-
-**Identidade Bloqueada:**
-```
-Identity error: identity is blocked (blacklist) for matricula: {matricula}
-```
-**Causa:** O usuário está na lista de bloqueio.
-
-**Solução:**
-- Remover o bloqueio no IdentityIQ (atributo `tim_block_list`)
-- Verificar com a equipe de administração
-
-**Identidade Inativa (Cloud):**
-```
-Identity error: identity '{identityName}' is inactive. Cannot enable RSA attributes for inactive identity.
-```
-**Causa:** A identidade está inativa no IdentityIQ.
-
-**Solução:** Ativar a identidade antes de processar.
-
-#### 5.3.3 Erros de Conta (Cloud)
-
-**Conta Ping Directory Não Encontrada:**
-```
-Account error: identity '{identityName}' has no Ping Directory account with matricula '{matricula}'.
-```
-**Causa:** O usuário não possui conta no Ping Directory.
-
-**Solução:**
-- Verificar se a aplicação Ping Directory está configurada
-- Confirmar que o usuário possui conta no Ping Directory
-- Verificar se a matrícula corresponde ao nativeIdentity do link
-
-**Conta Ping Directory Desabilitada:**
-```
-Account error: Ping Directory account is disabled for link '{nativeIdentity}'. Cannot enable RSA attributes for disabled account.
-```
-**Causa:** A conta do Ping Directory está desabilitada.
-
-**Solução:** Habilitar a conta do Ping Directory antes de processar.
-
-#### 5.3.4 Erros de Autenticação/API Externa
-
-**Erro de Autenticação RSA OnPremise:**
-```
-Onpremise API error: failed to obtain authentication token.
-```
-**Causa:** Problema na autenticação com o servidor RSA OnPremise.
-
-**Solução:**
-- Verificar credenciais no Custom Object `TIM-Custom-RSA-Credentials`
-- Verificar conectividade com o servidor RSA
-- Verificar se o servidor RSA está acessível
-
-**Erro de Autenticação RSA Cloud:**
-```
-Authentication error: OAuth access token could not be obtained.
-```
-**Causa:** Problema na autenticação OAuth com RSA Cloud.
-
-**Solução:**
-- Verificar configuração de chaves privadas no Custom Object
-- Verificar credenciais OAuth
-- Verificar conectividade com RSA Cloud
-
-**Erro ao Criar Token:**
-```
-Onpremise API error: failed to assign next token via assignNext.
-```
-**Causa:** Erro na API RSA ao criar token.
-
-**Solução:**
-- Verificar logs do servidor RSA
-- Verificar permissões da conta de serviço RSA
-- Verificar se o usuário já possui tokens (serão removidos automaticamente)
-
-**Erro de Provisioning:**
-```
-Provisioning error: failed to execute provisioning plan.
-```
-**Causa:** Erro ao executar provisioning no Ping Directory (Cloud).
-
-**Solução:**
-- Verificar conectividade com Ping Directory
-- Verificar configuração do conector Ping Directory
-- Verificar permissões de provisioning
-
----
-
-## 6. Exemplos de Implementação
-
-### 6.1 JavaScript/Node.js
-
-```javascript
-const axios = require('axios');
-const https = require('https');
-
-async function addTokenOnPremise(user, profile, requestId) {
-    const username = 'seu_usuario';
-    const password = 'sua_senha';
-    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-    
-    const url = 'http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-RSA/launch';
-    
-    const payload = {
-        workflowArgs: {
-            requestId: requestId,
-            type: 'onpremise',
-            operation: 'addtoken',
-            user: user,
-            profile: profile
-        }
-    };
-    
-    try {
-        const response = await axios.post(url, payload, {
-            headers: {
-                'Authorization': `Basic ${credentials}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.data.errors && response.data.errors.length > 0) {
-            throw new Error(response.data.errors[0]);
-        }
-        
-        return {
-            success: true,
-            requestID: response.data.requestID,
-            activationUrl: response.data.attributes.activationUrl
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error.response?.data?.errors?.[0] || error.message
-        };
-    }
-}
-
-// Uso
-addTokenOnPremise('T3622753', 'IOS', 'TK001')
-    .then(result => {
-        if (result.success) {
-            console.log('Token criado:', result.activationUrl);
-        } else {
-            console.error('Erro:', result.error);
-        }
-    });
-```
-
-### 6.2 Python
-
-```python
-import requests
-import base64
-import json
-
-def add_token_on_premise(user, profile, request_id):
-    username = 'seu_usuario'
-    password = 'sua_senha'
-    credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
-    
-    url = 'http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-RSA/launch'
-    
-    payload = {
-        "workflowArgs": {
-            "requestId": request_id,
-            "type": "onpremise",
-            "operation": "addtoken",
-            "user": user,
-            "profile": profile
-        }
-    }
-    
-    headers = {
-        'Authorization': f'Basic {credentials}',
-        'Content-Type': 'application/json'
-    }
-    
-    try:
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        
-        if data.get('errors'):
-            return {
-                'success': False,
-                'error': data['errors'][0]
-            }
-        
-        return {
-            'success': True,
-            'requestID': data.get('requestID'),
-            'activationUrl': data.get('attributes', {}).get('activationUrl')
-        }
-    except requests.exceptions.RequestException as e:
-        return {
-            'success': False,
-            'error': str(e)
-        }
-
-# Uso
-result = add_token_on_premise('T3622753', 'IOS', 'TK001')
-if result['success']:
-    print(f"Token criado: {result['activationUrl']}")
-else:
-    print(f"Erro: {result['error']}")
-```
-
-### 6.3 Java
-
-```java
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.io.*;
-import java.util.Base64;
-import org.json.JSONObject;
-
-public class RSATokenManager {
-    
-    private static final String BASE_URL = "http://smartid.internal.timbrasil.com.br/identityiq/rest/workflows/TIM-RSA/launch";
-    private static final String USERNAME = "seu_usuario";
-    private static final String PASSWORD = "sua_senha";
-    
-    public static Response addTokenOnPremise(String user, String profile, String requestId) {
-        try {
-            URL url = new URL(BASE_URL);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            
-            // Autenticação Basic
-            String auth = USERNAME + ":" + PASSWORD;
-            String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
-            conn.setRequestProperty("Authorization", "Basic " + encodedAuth);
-            
-            // Body
-            JSONObject payload = new JSONObject();
-            JSONObject workflowArgs = new JSONObject();
-            workflowArgs.put("requestId", requestId);
-            workflowArgs.put("type", "onpremise");
-            workflowArgs.put("operation", "addtoken");
-            workflowArgs.put("user", user);
-            workflowArgs.put("profile", profile);
-            payload.put("workflowArgs", workflowArgs);
-            
-            conn.setDoOutput(true);
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = payload.toString().getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
-            
-            int responseCode = conn.getResponseCode();
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                responseCode >= 200 && responseCode < 300 
-                    ? conn.getInputStream() 
-                    : conn.getErrorStream()
-            ));
-            
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = in.readLine()) != null) {
-                response.append(line);
-            }
-            in.close();
-            
-            JSONObject jsonResponse = new JSONObject(response.toString());
-            
-            if (jsonResponse.has("errors") && jsonResponse.get("errors") != null) {
-                return new Response(false, jsonResponse.getJSONArray("errors").getString(0), null, null);
-            }
-            
-            JSONObject attributes = jsonResponse.getJSONObject("attributes");
-            return new Response(
-                true,
-                null,
-                jsonResponse.getString("requestID"),
-                attributes.optString("activationUrl", null)
-            );
-            
-        } catch (Exception e) {
-            return new Response(false, e.getMessage(), null, null);
-        }
-    }
-    
-    static class Response {
-        boolean success;
-        String error;
-        String requestID;
-        String activationUrl;
-        
-        Response(boolean success, String error, String requestID, String activationUrl) {
-            this.success = success;
-            this.error = error;
-            this.requestID = requestID;
-            this.activationUrl = activationUrl;
-        }
-    }
-    
-    // Uso
-    public static void main(String[] args) {
-        Response result = addTokenOnPremise("T3622753", "IOS", "TK001");
-        if (result.success) {
-            System.out.println("Token criado: " + result.activationUrl);
-        } else {
-            System.out.println("Erro: " + result.error);
-        }
-    }
-}
+-- Índice composto para otimizar a query completa
+CREATE INDEX idx_bundle_workgroup 
+ON spt_identity_assigned_roles(bundle, identity_id);
 ```
 
 ---
 
-## 7. Melhores Práticas
+## Queries SQL para Coleta de Informações Adicionais
 
-### 7.1 Tratamento de Erros
+Execute os seguintes comandos para obter mais informações sobre o banco:
 
-1. **Sempre verificar o campo `errors`** na resposta antes de considerar a operação como bem-sucedida
-2. **Logar o `requestID`** para facilitar rastreamento e troubleshooting
-3. **Implementar retry logic** para erros temporários (erros de conectividade)
-4. **Validar parâmetros** antes de enviar a requisição
-5. **Tratar erros específicos** de forma diferenciada (ex: identidade não encontrada vs. erro de conectividade)
+### 1. Estrutura das Tabelas Problemáticas
 
-### 7.2 Validação de Entrada
+```sql
+-- Estrutura da tabela spt_bundle_profile_relation
+SHOW CREATE TABLE spt_bundle_profile_relation\G
 
-```javascript
-function validateRequest(type, operation, user, profile, emailToSend) {
-    const errors = [];
-    
-    if (!user || user.trim() === '') {
-        errors.push('user é obrigatório');
-    }
-    
-    if (type !== 'onpremise' && type !== 'cloud') {
-        errors.push('type deve ser "onpremise" ou "cloud"');
-    }
-    
-    if (operation !== 'addtoken' && operation !== 'removetoken') {
-        errors.push('operation deve ser "addtoken" ou "removetoken"');
-    }
-    
-    if (type === 'onpremise' && operation === 'addtoken') {
-        if (!profile || !['IOS', 'Android', 'Desktop'].includes(profile)) {
-            errors.push('profile é obrigatório e deve ser IOS, Android ou Desktop');
-        }
-    }
-    
-    if (type === 'cloud' && operation === 'addtoken') {
-        if (!emailToSend || emailToSend.trim() === '') {
-            errors.push('emailToSend é obrigatório para cloud addtoken');
-        }
-    }
-    
-    return errors;
-}
+-- Estrutura da tabela spt_bundle_profile_relation_object
+SHOW CREATE TABLE spt_bundle_profile_relation_object\G
+
+-- Estrutura da tabela spt_identity
+SHOW CREATE TABLE spt_identity\G
+
+-- Estrutura da tabela spt_request
+SHOW CREATE TABLE spt_request\G
 ```
 
-### 7.3 Rastreamento
+### 2. Índices Existentes
 
-1. **Usar `requestId` significativo**: Utilize IDs que facilitem o rastreamento (ex: número de ticket, UUID, timestamp)
-2. **Armazenar `requestID` retornado**: O `requestID` retornado pode ser usado para consultar logs no IdentityIQ
-3. **Logar todas as requisições**: Mantenha logs das requisições e respostas para auditoria
-
-### 7.4 Performance
-
-1. **Timeout adequado**: Configure timeout apropriado (recomendado: 60-120 segundos)
-2. **Não fazer requisições síncronas em loop**: Use processamento assíncrono para múltiplas requisições
-3. **Implementar cache quando apropriado**: Cache informações que não mudam frequentemente
-
----
-
-## 8. Checklist de Integração
-
-Antes de fazer deploy em produção, verificar:
-
-- [ ] Autenticação configurada corretamente (Basic Auth)
-- [ ] Tratamento de erros implementado
-- [ ] Validação de parâmetros antes do envio
-- [ ] Logging implementado (requestId, erros)
-- [ ] Timeout configurado adequadamente
-- [ ] Testes para todos os cenários (addtoken/removetoken, onpremise/cloud)
-- [ ] Tratamento de casos de erro específicos
-- [ ] Documentação interna atualizada
-- [ ] Credenciais seguras (não hardcoded)
-- [ ] Tratamento de conexão perdida/reconexão
-
----
-
-## 9. Suporte e Troubleshooting
-
-### 9.1 Informações para Suporte
-
-Ao reportar problemas, forneça:
-
-1. **RequestID** retornado na resposta (se disponível)
-2. **RequestId** enviado na requisição
-3. **Matrícula do usuário** (`user`)
-4. **Tipo e operação** (`type`, `operation`)
-5. **Mensagem de erro completa** do campo `errors`
-6. **Timestamp** da requisição
-7. **Headers** enviados (sem credenciais)
-
-### 9.2 Consulta de Logs
-
-Os logs podem ser consultados no IdentityIQ:
-1. Acessar: Monitor → Tasks
-2. Buscar pelo `requestID` retornado na resposta
-3. Verificar detalhes da execução do workflow
-
-### 9.3 Problemas Comuns
-
-| Problema | Verificar |
-|----------|-----------|
-| Erro 401 (Não autorizado) | Credenciais corretas? Permissões adequadas? |
-| Identidade não encontrada | Matrícula existe? Atributo `att_usuario` correto? |
-| Identidade bloqueada | Atributo `tim_block_list` está como "true"? |
-| Perfil inválido | Usando IOS, Android ou Desktop? (case-insensitive) |
-| Timeout | Servidor RSA acessível? Timeout configurado corretamente? |
-
----
-
-## 10. Referência Rápida
-
-### 10.1 Matriz de Parâmetros
-
-| Operação | Type | Parâmetros Obrigatórios |
-|----------|------|------------------------|
-| addtoken | onpremise | requestId, type, operation, user, **profile** |
-| removetoken | onpremise | requestId, type, operation, user |
-| addtoken | cloud | requestId, type, operation, user, **emailToSend** |
-| removetoken | cloud | requestId, type, operation, user |
-
-### 10.2 Valores Aceitos
-
-**type:** `"onpremise"`, `"cloud"` (case-insensitive)
-
-**operation:** `"addtoken"`, `"removetoken"` (case-insensitive)
-
-**profile:** `"IOS"`, `"Android"`, `"Desktop"` (case-insensitive)
-
----
-
-## 11. Exemplos Completos
-
-### 11.1 Adicionar Token OnPremise - Todos os Perfis
-
-**iOS:**
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK-IOS-001",
-        "type": "onpremise",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "profile": "IOS"
-    }
-}
+```sql
+-- Todos os índices das tabelas problemáticas
+SHOW INDEX FROM spt_bundle_profile_relation;
+SHOW INDEX FROM spt_bundle_profile_relation_object;
+SHOW INDEX FROM spt_identity;
+SHOW INDEX FROM spt_request;
+SHOW INDEX FROM spt_identity_assigned_roles;
+SHOW INDEX FROM spt_bundle;
 ```
 
-**Android:**
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK-AND-001",
-        "type": "onpremise",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "profile": "Android"
-    }
-}
+### 3. Estatísticas das Tabelas
+
+```sql
+-- Tamanho e estatísticas das tabelas
+SELECT 
+    table_name,
+    table_rows,
+    ROUND(((data_length + index_length) / 1024 / 1024 / 1024), 2) AS "Size (GB)",
+    ROUND((data_length / 1024 / 1024 / 1024), 2) AS "Data (GB)",
+    ROUND((index_length / 1024 / 1024 / 1024), 2) AS "Index (GB)",
+    ROUND((data_free / 1024 / 1024 / 1024), 2) AS "Free (GB)"
+FROM information_schema.TABLES 
+WHERE table_schema = 'identityiq' 
+  AND table_name IN (
+      'spt_bundle_profile_relation',
+      'spt_bundle_profile_relation_object',
+      'spt_identity',
+      'spt_request',
+      'spt_identity_assigned_roles',
+      'spt_bundle'
+  )
+ORDER BY (data_length + index_length) DESC;
 ```
 
-**Desktop:**
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK-DESK-001",
-        "type": "onpremise",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "profile": "Desktop",
-        "deviceSerialNumber": "DEVICE123456"
-    }
-}
+### 4. Análise de Fragmentação
+
+```sql
+-- Verificar fragmentação
+SELECT 
+    table_name,
+    ROUND((data_free / (data_length + index_length)) * 100, 2) AS "Fragmentation %"
+FROM information_schema.TABLES 
+WHERE table_schema = 'identityiq' 
+  AND table_name IN (
+      'spt_bundle_profile_relation',
+      'spt_bundle_profile_relation_object',
+      'spt_identity',
+      'spt_request'
+  )
+HAVING "Fragmentation %" > 10;
 ```
 
-### 11.2 Operações Cloud
+### 5. Transações e Locks Ativos
 
-**Adicionar Token Cloud:**
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK-CLOUD-ADD-001",
-        "type": "cloud",
-        "operation": "addtoken",
-        "user": "T3622753",
-        "emailToSend": "usuario@timbrasil.com.br"
-    }
-}
+```sql
+-- Transações ativas
+SELECT 
+    trx_id,
+    trx_state,
+    trx_started,
+    TIMESTAMPDIFF(SECOND, trx_started, NOW()) AS duration_seconds,
+    trx_requested_lock_id,
+    trx_wait_started,
+    trx_mysql_thread_id,
+    trx_query
+FROM information_schema.innodb_trx
+ORDER BY trx_started;
+
+-- Locks esperando
+SELECT 
+    r.trx_id AS waiting_trx_id,
+    r.trx_mysql_thread_id AS waiting_thread,
+    r.trx_query AS waiting_query,
+    b.trx_id AS blocking_trx_id,
+    b.trx_mysql_thread_id AS blocking_thread,
+    b.trx_query AS blocking_query
+FROM information_schema.innodb_lock_waits w
+INNER JOIN information_schema.innodb_trx b ON b.trx_id = w.blocking_trx_id
+INNER JOIN information_schema.innodb_trx r ON r.trx_id = w.requesting_trx_id;
 ```
 
-**Remover Token Cloud:**
-```json
-{
-    "workflowArgs": {
-        "requestId": "TK-CLOUD-REM-001",
-        "type": "cloud",
-        "operation": "removetoken",
-        "user": "T3622753"
-    }
-}
+### 6. Configurações do InnoDB
+
+```sql
+-- Configurações importantes do InnoDB
+SHOW VARIABLES LIKE 'innodb%';
+SHOW VARIABLES LIKE 'max_connections';
+SHOW VARIABLES LIKE 'innodb_buffer_pool_size';
+SHOW VARIABLES LIKE 'innodb_log_file_size';
+SHOW VARIABLES LIKE 'innodb_flush_log_at_trx_commit';
+SHOW VARIABLES LIKE 'innodb_lock_wait_timeout';
+```
+
+### 7. Estatísticas de Performance Schema
+
+```sql
+-- Queries mais lentas (últimas 24h)
+SELECT 
+    sql_text,
+    COUNT(*) AS exec_count,
+    AVG(timer_wait) / 1000000000000 AS avg_time_sec,
+    SUM(timer_wait) / 1000000000000 AS total_time_sec
+FROM performance_schema.events_statements_history_long
+WHERE sql_text LIKE '%spt_%'
+GROUP BY sql_text
+ORDER BY total_time_sec DESC
+LIMIT 20;
 ```
 
 ---
 
-## 12. Contatos
+## Plano de Ação Recomendado
 
-Para questões técnicas ou problemas:
-1. Consultar esta documentação
-2. Verificar logs do IdentityIQ usando o `requestID`
-3. Contatar equipe de suporte com informações detalhadas (ver seção 9.1)
+### Fase 1: Crítico (Implementar Imediatamente)
 
+1. **Criar índices para Query #1:**
+   ```sql
+   CREATE INDEX idx_modified_id_type 
+   ON spt_bundle_profile_relation_object(modified_id, type);
+   
+   CREATE INDEX idx_bundle_created 
+   ON spt_bundle_profile_relation(bundle_id, created DESC);
+   ```
+
+2. **Investigar e resolver locks na Query #2:**
+   - Executar queries de diagnóstico de locks
+   - Revisar código da aplicação para reduzir tempo de transação
+   - Implementar lock timeout
+
+### Fase 2: Alta Prioridade (Esta Semana)
+
+3. **Otimizar UPDATEs em spt_request:**
+   - Analisar possibilidade de compressão ou normalização do campo attributes
+   - Verificar fragmentação e executar OPTIMIZE TABLE se necessário
+
+4. **Criar índices para outras queries problemáticas:**
+   - Índices para spt_identity_assigned_roles
+   - Índices para spt_bundle
+
+### Fase 3: Melhorias Contínuas (Próximas 2 Semanas)
+
+5. **Monitoramento:**
+   - Configurar alertas para queries lentas
+   - Revisar slow query log semanalmente
+   - Implementar dashboard de performance
+
+6. **Otimizações de Configuração:**
+   - Ajustar innodb_buffer_pool_size
+   - Revisar configurações de log do InnoDB
+   - Considerar particionamento de tabelas grandes
+
+---
+
+## Observações Importantes
+
+1. **Teste em Ambiente de Desenvolvimento/Staging primeiro**
+2. **Faça backup antes de criar índices em produção** (pode demorar em tabelas grandes)
+3. **Monitore o impacto após cada mudança**
+4. **Crie índices durante horário de menor uso** (pode bloquear a tabela)
+5. **Considere usar `ALGORITHM=INPLACE, LOCK=NONE` quando possível** (MySQL 5.6+)
+
+---
+
+## Métricas de Sucesso Esperadas
+
+Após implementar as otimizações:
+
+- **Query #1:** Redução de 99%+ (de 55min para <1s)
+- **Query #2:** Redução de 80-90% no lock time
+- **UPDATEs spt_request:** Redução de 50-70% (de 13s para 4-6s)
+- **Tempo total de execução:** Redução de 60-70% no geral
+- **Throughput:** Aumento de 2-3x em QPS
+
+---
+
+## Contato para Dúvidas
+
+Execute as queries de diagnóstico acima e compartilhe os resultados para análise mais detalhada.
